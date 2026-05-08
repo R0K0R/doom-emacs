@@ -11,8 +11,8 @@
   :recipe (:type git :host github :repo "R0K0R/noteworthy.el"))
 
 ;; Real-time collaboration package (local for now)
-(package! noteworthy-collab
-  :recipe (:local-repo "~/Typst/noteworthy-collab.el"))
+;;(package! noteworthy-collab
+;;  :recipe (:local-repo "~/Typst/noteworthy-collab.el"))
 
 (package! treemacs-nerd-icons)
 

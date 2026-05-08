@@ -279,28 +279,28 @@
 ;; Noteworthy Collaboration (Real-time remote editing)
 ;; ============================================================
 
-(use-package! noteworthy-collab
-  :commands (noteworthy-remote-init noteworthy-collab-disconnect noteworthy-collab-status)
-  :config
-  ;; Default server URL
-  (setq noteworthy-collab-server-url "ws://localhost:8000/ws/emacs")
-  
-  ;; Your display name for collaboration
-  (setq noteworthy-collab-user-name user-login-name)
-  
-  ;; Terminal command for remote sessions (same as local)
-  (setq noteworthy-collab-terminal-cmd +noteworthy-terminal-cmd)
-  
-  ;; Preview URL (set this to your port-forwarded tinymist URL)
-  ;; ssh -L 23625:localhost:23625 yourserver
-  ;; (setq noteworthy-collab-preview-url "http://localhost:23625")
-  )
-
-;; Keybindings for collaboration
-(map! :leader
-      :prefix ("n" . "noteworthy")
-      :desc "Remote init" "r" #'noteworthy-remote-init
-      :desc "Disconnect" "d" #'noteworthy-collab-disconnect
-      :desc "Status" "s" #'noteworthy-collab-status
-      :desc "Toggle log" "l" #'noteworthy-collab-toggle-log)
-
+;;(use-package! noteworthy-collab
+;;  :commands (noteworthy-remote-init noteworthy-collab-disconnect noteworthy-collab-status)
+;;  :config
+;;  ;; Default server URL
+;;  (setq noteworthy-collab-server-url "ws://localhost:8000/ws/emacs")
+;;  
+;;  ;; Your display name for collaboration
+;;  (setq noteworthy-collab-user-name user-login-name)
+;;  
+;;  ;; Terminal command for remote sessions (same as local)
+;;  (setq noteworthy-collab-terminal-cmd +noteworthy-terminal-cmd)
+;;  
+;;  ;; Preview URL (set this to your port-forwarded tinymist URL)
+;;  ;; ssh -L 23625:localhost:23625 yourserver
+;;  ;; (setq noteworthy-collab-preview-url "http://localhost:23625")
+;;  )
+;;
+;;;; Keybindings for collaboration
+;;(map! :leader
+;;      :prefix ("n" . "noteworthy")
+;;      :desc "Remote init" "r" #'noteworthy-remote-init
+;;      :desc "Disconnect" "d" #'noteworthy-collab-disconnect
+;;      :desc "Status" "s" #'noteworthy-collab-status
+;;      :desc "Toggle log" "l" #'noteworthy-collab-toggle-log)
+;;

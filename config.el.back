@@ -1,0 +1,198 @@
+;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
+
+;; Place your private configuration here! Remember, you do not need to run 'doom
+;; sync' after modifying this file!
+
+
+;; Some functionality uses this to identify you, e.g. GPG configuration, email
+;; clients, file templates and snippets. It is optional.
+;; (setq user-full-name "John Doe"
+;;       user-mail-address "john@doe.com")
+
+;; Doom exposes five (optional) variables for controlling fonts in Doom:
+;;
+;; - `doom-font' -- the primary font to use
+;; - `doom-variable-pitch-font' -- a non-monospace font (where applicable)
+;; - `doom-big-font' -- used for `doom-big-font-mode'; use this for
+;;   presentations or streaming.
+;; - `doom-symbol-font' -- for symbols
+;; - `doom-serif-font' -- for the `fixed-pitch-serif' face
+;;
+;; See 'C-h v doom-font' for documentation and more examples of what they
+;; accept. For example:
+;;
+;;(setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
+;;      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
+;;
+;; If you or Emacs can't find your font, use 'M-x describe-font' to look them
+;; up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
+;; refresh your font settings. If Emacs still can't find your font, it likely
+;; wasn't installed correctly. Font issues are rarely Doom issues!
+
+;; There are two ways to load a theme. Both assume the theme is installed and
+;; available. You can either set `doom-theme' or manually load a theme with the
+;; `load-theme' function. This is the default:
+;; Font: Required for VTerm/Fish prompt glyphs
+;; 1. Define your "Master" Laptop Settings (Size 15 @ 2880px)
+(setq doom-font (font-spec :family "JetBrainsMonoNL Nerd Font" :size 15.0 :weight 'semi-light)
+      doom-variable-pitch-font (font-spec :family "JetBrainsMonoNL Nerd Font" :size 15.0))
+
+;; 2. The Sync Function
+(defun my/sync-font-columns (frame)
+  "Scale font on external monitor to match Laptop's column count exactly."
+  (with-selected-frame frame
+    (let* ((attrs (frame-monitor-attributes frame))
+           (pixel-width (nth 3 (assq 'geometry attrs))))
+
+      (cond
+       ;; CASE 1: Laptop Screen (Approx 2880px)
+       ((> pixel-width 2800)
+        (set-face-attribute 'default frame :height 120)        ;; 15.0pt
+        (set-face-attribute 'variable-pitch frame :height 120))
+
+       ;; CASE 2: External Monitor (Approx 2560px)
+       ;; Math: 15.0 * (2560/2880) = 13.33 -> 133
+       (t
+        (set-face-attribute 'default frame :height 90)        ;; 9.0pt
+        (set-face-attribute 'variable-pitch frame :height 90))))))
+
+;; 3. Apply automatically
+(add-hook 'after-make-frame-functions #'my/sync-font-columns)
+(add-hook 'window-size-change-functions #'my/sync-font-columns)
+
+;; 4. Force run once on startup for the first frame
+(my/sync-font-columns (selected-frame))
+
+;; There are two ways to load a theme. Both assume the theme is installed and
+;; available. You can either set `doom-theme' or manually load a theme with the
+;; `load-theme' function. This is the default:
+(setq doom-theme 'doom-one)
+
+;; Theme: Pitch Black Override
+;; We must override solaire-mode faces too because Doom uses them for sidebars/terminals
+(custom-set-faces!
+  '(default :background "#000000")
+  '(fringe :background "#000000")
+  '(line-number :background "#000000")
+  '(solaire-default-face :background "#000000")
+  '(solaire-fringe-face :background "#000000")
+  '(treemacs-window-background-face :background "#000000")
+  '(term :background "#000000")
+  '(vterm :background "#000000"))
+
+;; Treemacs Theme
+(after! treemacs
+  (treemacs-load-theme "doom-colors"))
+
+;; Eldoc: Show explanation after 0.5s
+(setq eldoc-idle-delay 0.5)
+(setq eldoc-echo-area-use-multiline-p t)
+
+;; This determines the style of line numbers in effect. If set to `nil', line
+;; numbers are disabled. For relative line numbers, set this to `relative'.
+(setq display-line-numbers-type t)
+
+;; If you use `org' and don't want your org files in the default location below,
+;; change `org-directory'. It must be set before org loads!
+(setq org-directory "~/org/")
+
+
+;; Whenever you reconfigure a package, make sure to wrap your config in an
+;; `after!' block, otherwise Doom's defaults may override your settings. E.g.
+;;
+;;   (after! PACKAGE
+;;     (setq x y))
+;;
+;; The exceptions to this rule:
+;;
+;;   - Setting file/directory variables (like `org-directory')
+;;   - Setting variables which explicitly tell you to set them before their
+;;     package is loaded (see 'C-h v VARIABLE' to look up their documentation).
+;;   - Setting doom variables (which start with 'doom-' or '+').
+;;
+;; Here are some additional functions/macros that will help you configure Doom.
+;;
+;; - `load!' for loading external *.el files relative to this one
+;; - `use-package!' for configuring packages
+;; - `after!' for running code after a package has loaded
+;; - `add-load-path!' for adding directories to the `load-path', relative to
+;;   this file. Emacs searches the `load-path' when you load packages with
+;;   `require' or `use-package'.
+;; - `map!' for binding new keys
+;;
+;; To get information about any of these functions/macros, move the cursor over
+;; the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
+;; This will open documentation for it, including demos of how they are used.
+;; Alternatively, use `C-h o' to look up a symbol (functions, variables, faces,
+;; etc).
+;;
+;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
+;; they are implemented.
+
+;; FORCE FIX: Restoring Leader Key (SPC) on Emacs 31
+;; Doom's default binding seems to fail on bleeding-edge Emacs, falling back to evil-forward-char.
+;; This manually re-binds SPC to the leader map in Normal/Visual states.
+(after! evil
+  (evil-define-key* '(normal visual) 'global
+    (kbd "SPC") doom-leader-map)
+  ;; Optional: Bind comma as a backup leader
+  (evil-define-key* '(normal visual) 'global
+    (kbd ",") doom-leader-map))
+
+(after! treemacs
+  (setq treemacs-persist-file nil))
+
+;; python shell regex solve
+;; Clean up the environment for the Python shell
+(after! python
+  (setenv "TERM_PROGRAM" "dumb")
+  (setenv "TERM" "dumb")
+  (setenv "VSCODE_IPC_HOOK_CLI" nil)
+  (setenv "VSCODE_SHELL_INTEGRATION" nil)
+
+  ;; Force standard python3 as the interpreter
+  (setq python-shell-interpreter "python3")
+  ;; -i ensures it stays interactive and shows the prompt
+  (setq python-shell-interpreter-args "-i"))
+
+;; --- LSP & Python Intelligence ---
+(after! lsp-mode
+  (setq lsp-disabled-clients '(semgrep-ls ruff pylsp pyls ty-ls)
+        lsp-enabled-clients '(pyright)
+        lsp-idle-delay 0.2
+        lsp-pyright-inlay-hints-variable-types t
+        lsp-pyright-inlay-hints-function-return-types t)
+
+  ;; Use the built-in lsp-mode hook for sideline instead of calling a function directly
+  (setq lsp-ui-sideline-enable t
+        lsp-ui-sideline-show-hover t))
+
+;; This is the safer way to enable the mode
+(add-hook 'python-ts-mode-hook #'lsp-deferred)
+(add-hook 'python-ts-mode-hook #'lsp-inlay-hints-mode)
+
+;; --- Customizing Inlay Hint Colors ---
+;; Since you use a pitch-black background, standard gray might be too dim
+(custom-set-faces!
+  '(lsp-inlay-hint-face :foreground "#555555" :slant italic :weight light))
+
+;; --- Debugger (Dape) Environment Fix ---
+(after! dape
+  ;; This ensures the debugger doesn't inherit the VS Code "corruption" codes
+  (setq dape-env `(("TERM" . "dumb") ("TERM_PROGRAM" . "dumb")))
+
+  ;; Standard Python config for Dape
+  (add-to-list 'dape-configs
+               `(debugpy
+                 command "python3"
+                 port 5678
+                 :setup dape-setup-debugpy
+                 :request "launch"
+                 :program dape-buffer-default)))
+(after! lsp-python-ms
+  (setq lsp-pyright-multi-root nil) ; Optional: stability fix for some setups
+  ;; Add python-ts-mode to the list of allowed modes for Pyright
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-tramp-connection "pyright-langserver --stdio")
+                    :major-modes '(python-mode python-ts-mode)
+                    :server-id 'pyright)))

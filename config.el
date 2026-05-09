@@ -70,24 +70,37 @@
 ;; VTerm shell: use Fish if available, otherwise `shell-file-name`.
 (setq vterm-shell (or (executable-find "fish") shell-file-name))
 
-;; Doom enables `hide-mode-line-mode` in vterm, DAP REPL, terminals, etc.—undo that for a persistent modeline.
-(defun my/show-mode-line-maybe ()
+;; Doom hides the mode line in vterm / term / eshell / shell / DAP REPL via
+;; `mode-line-invisible-mode', not `hide-mode-line-mode' (see Doom’s
+;; modules/term/*/config.el). Remove those hooks and undo both minor modes so the
+;; modeline stays visible everywhere we care about.
+(defun my/force-show-mode-line ()
   (when (bound-and-true-p hide-mode-line-mode)
-    (hide-mode-line-mode -1)))
+    (hide-mode-line-mode -1))
+  (when (bound-and-true-p mode-line-invisible-mode)
+    (mode-line-invisible-mode -1)))
 
 (after! vterm
-  (remove-hook 'vterm-mode-hook #'hide-mode-line-mode))
+  (remove-hook 'vterm-mode-hook #'mode-line-invisible-mode)
+  ;; Append so this runs after any remaining `vterm-mode-hook' entries.
+  (add-hook 'vterm-mode-hook #'my/force-show-mode-line t))
 
 (after! dape
-  (remove-hook 'dape-repl-mode-hook #'hide-mode-line-mode))
+  (remove-hook 'dape-repl-mode-hook #'mode-line-invisible-mode)
+  (add-hook 'dape-repl-mode-hook #'my/force-show-mode-line t))
 
 ;; Inferior Python, ielm, `M-x compile`, and other comint-derived REPLs.
-(add-hook 'comint-mode-hook #'my/show-mode-line-maybe t)
+(add-hook 'comint-mode-hook #'my/force-show-mode-line t)
 
-;; If you enable :term {shell,term,eshell}, these remove Doom’s default hiding there too.
-(after! shell (remove-hook 'shell-mode-hook #'hide-mode-line-mode))
-(after! term (remove-hook 'term-mode-hook #'hide-mode-line-mode))
-(after! eshell (remove-hook 'eshell-mode-hook #'hide-mode-line-mode))
+(after! shell
+  (remove-hook 'shell-mode-hook #'mode-line-invisible-mode)
+  (add-hook 'shell-mode-hook #'my/force-show-mode-line t))
+(after! term
+  (remove-hook 'term-mode-hook #'mode-line-invisible-mode)
+  (add-hook 'term-mode-hook #'my/force-show-mode-line t))
+(after! eshell
+  (remove-hook 'eshell-mode-hook #'mode-line-invisible-mode)
+  (add-hook 'eshell-mode-hook #'my/force-show-mode-line t))
 
 ;; clipetty
 (use-package! clipetty

@@ -82,7 +82,7 @@ Resizes the reference window ONLY after all other windows are created."
     (let ((term-window (split-window-below (floor (* 0.75 (window-height))))))
       (select-window term-window)
       (when (fboundp 'vterm)
-        (let ((vterm-shell "distrobox-host-exec /usr/bin/fish"))
+        (let ((vterm-shell (or (executable-find "fish") shell-file-name)))
           (let ((buf (vterm--internal (lambda (b) (switch-to-buffer b)))))
              (switch-to-buffer buf)
              (vterm-send-string (format "cd %s\n" (shell-quote-argument project-dir)))))))

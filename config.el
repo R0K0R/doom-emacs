@@ -2,7 +2,7 @@
 
 (defun my/path-force-first-component (directory)
   "Ensure DIRECTORY appears once and is first on `PATH', and prepend `exec-path'."
-  ;; Distrobox shims (`/usr/local/bin') must precede conda/Anaconda shadows.
+  ;; Project shims under `/usr/local/bin' should precede conda/Anaconda shadows.
   (let* ((dir (directory-file-name (expand-file-name directory)))
          (dirs (split-string (or (getenv "PATH") "") path-separator t))
          (without (seq-remove (lambda (d) (string= d dir)) dirs)))
@@ -67,8 +67,8 @@
 (setq eldoc-idle-delay 0.3
       eldoc-echo-area-use-multiline-p t)
 
-;; VTerm shell
-(setq vterm-shell "distrobox-host-exec fish")
+;; VTerm shell: use Fish if available, otherwise `shell-file-name`.
+(setq vterm-shell (or (executable-find "fish") shell-file-name))
 
 ;; Doom enables `hide-mode-line-mode` in vterm, DAP REPL, terminals, etc.—undo that for a persistent modeline.
 (defun my/show-mode-line-maybe ()
@@ -133,9 +133,6 @@
         lsp-pyright-type-checking-mode "standard")
   ;; `lsp-dependency' is fixed when lsp-pyright loads (frozen at `pyright-langserver');
   ;; re-register after `setq' above. Prefer `basedpyright-langserver' on PATH / ~/.local.
-  ;; Install inside the Emacs distrobox: `sudo dnf install -y python3-pip' then
-  ;; `python3 -m pip install --user basedpyright' — same ~/.local/bin as the host HOME,
-  ;; but Fedora's /usr/bin/python3 + ~/.local/lib/python3.11 (no vfork ENOENT vs pipx/py314).
   (lsp-dependency 'pyright
     `(:system ,(or (executable-find "basedpyright-langserver" t)
                   (let ((p (expand-file-name "~/.local/bin/basedpyright-langserver")))
@@ -396,19 +393,8 @@
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
 
 ;; ==========================================
-;; 13. Flutter (Distrobox: Fedora container + Arch host)
+;; 13. Flutter / Dart LSP
 ;; ==========================================
-;;
-;; Arch dart under /run/host/opt/dart-sdk is linked against glibc 2.38+; Fedora 38 in
-;; emacs-build-fedora only has 2.37.  Emacs execs that ELF in the container namespace →
-;; immediate failure (see *lsp-log* / shell: `/run/host/opt/dart-sdk/bin/dart --version`).
-;; /usr/local/bin/dart and flutter are distrobox-host-exec shims → analysis server runs on
-;; the host.  Treat /usr/local as the SDK *root* so lsp-dart resolves bin/dart and
-;; bin/flutter to those scripts instead of host ELF paths.
-;;
-;; The analyzer returns URIs like file:///usr/lib/flutter/... (host paths).  Inside the
-;; container those files live under /run/host/... .  Without remapping, xref/LSP jump and
-;; peek cannot open SDK sources (“No xref definition”).  Map both directions below.
 
 (after! lsp-dart
   ;; Default order is `(lsp-root closest-pubspec)`. If the LSP workspace is a parent folder
@@ -416,47 +402,7 @@
   ;; `lsp-dart-flutter-project-p` is nil, and test runs use Dart's test runner instead of
   ;; `flutter test --machine', so *LSP Dart tests* stays on "Spawning test process...".
   (setq lsp-dart-project-root-discovery-strategies '(closest-pubspec lsp-root))
-  ;; lsp-dart's Run/Debug overlays above main/tests (custom overlays, not lsp-mode lens).
   (setq lsp-dart-main-code-lens nil
         lsp-dart-test-code-lens nil)
-  ;; Do not turn on `lsp-dart-dap-mode' when a DAP session is created (after-save /
-  ;; dap-output buffer tweaks); you still have flutter.el and `flutter-run' commands.
   (remove-hook 'dap-session-created-hook #'lsp-dart-dap--enable-mode)
   (remove-hook 'dap-terminated-hook #'lsp-dart-dap--disable-mode))
-
-(defun my/distrobox-arch-host-flutter-sdk-p ()
-  "Host Flutter SDK is mounted under /run/host (Distrobox), not at /usr/lib/flutter."
-  (and (file-exists-p "/run/host/usr/lib/flutter/packages/flutter/lib/material.dart")
-       (not (file-exists-p "/usr/lib/flutter/packages/flutter/lib/material.dart"))))
-
-(defun my/lsp--uri-to-path-distrobox-aov (orig-fn uri)
-  (let ((path (funcall orig-fn uri)))
-    (if (my/distrobox-arch-host-flutter-sdk-p)
-        (cond ((string-prefix-p "/usr/lib/flutter/" path)
-               (concat "/run/host" path))
-              ((string-prefix-p "/opt/dart-sdk/" path)
-               (concat "/run/host" path))
-              (t path))
-      path)))
-
-(defun my/lsp--path-to-uri-1-distrobox-aov (orig-fn path)
-  (if (null path)
-      (funcall orig-fn path)
-    (let ((path
-           (if (my/distrobox-arch-host-flutter-sdk-p)
-               (cond ((string-prefix-p "/run/host/usr/lib/flutter/" path)
-                      (substring path (length "/run/host")))
-                     ((string-prefix-p "/run/host/opt/dart-sdk/" path)
-                      (substring path (length "/run/host")))
-                     (t path))
-             path)))
-      (funcall orig-fn path))))
-
-(when (file-directory-p "/run/host/opt/dart-sdk")
-  (after! lsp-dart
-    (setq lsp-dart-sdk-dir "/usr/local"
-          lsp-dart-flutter-sdk-dir "/usr/local"))
-  (after! lsp-mode
-    (when (file-exists-p "/run/host/usr/lib/flutter/packages/flutter/lib/material.dart")
-      (advice-add 'lsp--uri-to-path :around #'my/lsp--uri-to-path-distrobox-aov)
-      (advice-add 'lsp--path-to-uri-1 :around #'my/lsp--path-to-uri-1-distrobox-aov))))

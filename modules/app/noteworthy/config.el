@@ -2,7 +2,7 @@
 
 (require 'noteworthy)
 
-(defvar +noteworthy-terminal-cmd '("/bin/distrobox-host-exec" "/usr/bin/fish")
+(defvar +noteworthy-terminal-cmd (list (or (executable-find "fish") shell-file-name))
   "Command to run in the Noteworthy terminal.")
 
 (use-package! dtrt-indent

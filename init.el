@@ -1,18 +1,7 @@
 ;;; init.el -*- lexical-binding: t; -*-
 
-;; PGTK on Wayland: GtkHeaderBar “title bar” even when niri has `prefer-no-csd'
-;; (niri still honors clients that ask for CSD; restart Emacs after changing that).
-(when (and (eq window-system 'pgtk) (not noninteractive))
-  (push '(undecorated . t) default-frame-alist)
-  (add-hook 'after-init-hook
-            (lambda ()
-              (when (display-graphic-p)
-                (set-frame-parameter nil 'undecorated t)))
-            5)
-  (add-hook 'after-make-frame-functions
-            (lambda (frame)
-              (when (display-graphic-p frame)
-                (set-frame-parameter frame 'undecorated t)))))
+;; PGTK/Wayland: omit GTK header/title strip (niri `prefer-no-csd' alone is insufficient).
+(add-to-list 'default-frame-alist '(undecorated . t))
 
 ;; This file controls what Doom modules are enabled and what order they load
 ;; in. Remember to run 'doom sync' after modifying it!

@@ -140,18 +140,21 @@
 
   (add-to-list 'lsp-language-id-configuration '(python-ts-mode . "python")))
 
-;; 2. BasedPyright: settings + dependency path
+;; 2. Pyright vs BasedPyright: `lsp-pyright-langserver-command` must match the binary on PATH.
+;;    With command "basedpyright", lsp looks for `basedpyright-langserver`; Nix only ships
+;;    `pyright-langserver`, so install fell through to :npm and failed ("Unable to find a way to install").
 (after! lsp-pyright
-  (setq lsp-pyright-langserver-command "basedpyright"
-        lsp-pyright-type-checking-mode "standard")
-  ;; `lsp-dependency' is fixed when lsp-pyright loads (frozen at `pyright-langserver');
-  ;; re-register after `setq' above. Prefer `basedpyright-langserver' on PATH / ~/.local.
-  (lsp-dependency 'pyright
-    `(:system ,(or (executable-find "basedpyright-langserver" t)
-                  (let ((p (expand-file-name "~/.local/bin/basedpyright-langserver")))
-                    (when (file-executable-p p) p))
-                  "basedpyright-langserver"))
-    `(:npm :package "basedpyright" :path "basedpyright-langserver")))
+  (setq lsp-pyright-type-checking-mode "standard")
+  (cond ((executable-find "basedpyright-langserver" t)
+         (setq lsp-pyright-langserver-command "basedpyright")
+         (lsp-dependency 'pyright
+           `(:system ,(executable-find "basedpyright-langserver" t))
+           `(:npm :package "basedpyright" :path "basedpyright-langserver")))
+        (t
+         (setq lsp-pyright-langserver-command "pyright")
+         (lsp-dependency 'pyright
+           `(:system ,(or (executable-find "pyright-langserver" t) "pyright-langserver"))
+           `(:npm :package "pyright" :path "pyright-langserver")))))
 
 ;; Ensure lsp-mode attaches to tree-sitter Python
 (defun my-python-setup-h ()

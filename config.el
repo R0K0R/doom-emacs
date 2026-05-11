@@ -424,10 +424,11 @@
   (remove-hook 'dap-terminated-hook #'lsp-dart-dap--disable-mode))
 
 ;; ==========================================
-;; Machine-local overrides (optional)
+;; Machine-local overrides (optional, Home Manager–friendly)
 ;; ==========================================
-;; `machine-local.el` lives next to this file but is gitignored — never pushed.
-;; Home Manager copies it into `$DOOMDIR` when present under ~/doom-emacs/.
-(let ((local (expand-file-name "machine-local.el" doom-user-dir)))
-  (when (file-readable-p local)
-    (load! "machine-local")))
+;; Editable file (never in flake Git): ~/.config/home-manager/doom-machine-local.el
+;; HM installs `doom-machine-local.el.example` next to it — copy & rename to activate.
+(let* ((xdg (or (getenv "XDG_CONFIG_HOME") (expand-file-name "~/.config")))
+       (hm-local (expand-file-name "home-manager/doom-machine-local.el" xdg)))
+  (when (file-readable-p hm-local)
+    (load hm-local nil 'nomessage)))

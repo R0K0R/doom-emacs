@@ -426,8 +426,7 @@
 ;; ==========================================
 ;; Machine-local overrides (optional, Home Manager–friendly)
 ;; ==========================================
-;; Editable file (never in flake Git): ~/.config/home-manager/doom-machine-local.el
-;; HM installs `doom-machine-local.el.example` next to it — copy & rename to activate.
+;; Editable via Home Manager: ~/.config/home-manager/doom-machine-local.el (declared in home-r0k0r.nix).
 (let* ((xdg (or (getenv "XDG_CONFIG_HOME") (expand-file-name "~/.config")))
        (hm-local (expand-file-name "home-manager/doom-machine-local.el" xdg)))
   (when (file-readable-p hm-local)

@@ -422,3 +422,12 @@
         lsp-dart-test-code-lens nil)
   (remove-hook 'dap-session-created-hook #'lsp-dart-dap--enable-mode)
   (remove-hook 'dap-terminated-hook #'lsp-dart-dap--disable-mode))
+
+;; ==========================================
+;; Machine-local overrides (optional)
+;; ==========================================
+;; `machine-local.el` lives next to this file but is gitignored — never pushed.
+;; Home Manager copies it into `$DOOMDIR` when present under ~/doom-emacs/.
+(let ((local (expand-file-name "machine-local.el" doom-user-dir)))
+  (when (file-readable-p local)
+    (load! "machine-local")))

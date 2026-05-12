@@ -22,7 +22,7 @@
 
 (use-package! treesit-auto
   :config
-  (setq treesit-auto-install 'prompt)
+  (setq treesit-auto-install t)
   (treesit-auto-add-to-auto-mode-alist 'all))
 
 (use-package! typst-preview

@@ -20,11 +20,6 @@
   (add-to-list 'treesit-language-source-alist
                '(typst "https://github.com/uben0/tree-sitter-typst")))
 
-(use-package! treesit-auto
-  :config
-  (setq treesit-auto-install t)
-  (treesit-auto-add-to-auto-mode-alist 'all))
-
 (use-package! typst-preview
   :config
   (setq typst-preview-executable "tinymist")

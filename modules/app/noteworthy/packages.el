@@ -1,7 +1,6 @@
 ;; -*- no-byte-compile: t; -*-
 ;;; app/noteworthy/packages.el
 
-(package! treesit-auto)
 (package! websocket)
 (package! dtrt-indent)
 (package! typst-preview

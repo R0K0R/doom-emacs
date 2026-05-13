@@ -19,6 +19,17 @@
 (add-hook 'emacs-startup-hook #'my/configure-exec-search-path)
 
 ;; ==========================================
+;; 0. TREE-SITTER (shared; not app-specific)
+;; ==========================================
+;; Install missing grammars on demand (Python, etc.). Requires :tools tree-sitter in init.el.
+;; Typst URL stays in `modules/app/noteworthy/config.el' (loads before this file’s deferred block).
+(after! tree-sitter
+  (use-package! treesit-auto
+    :config
+    (setq treesit-auto-install t)
+    (treesit-auto-add-to-auto-mode-alist 'all)))
+
+;; ==========================================
 ;; 1. IDENTITY & VISUALS
 ;; ==========================================
 (setq user-full-name "r0k0r"

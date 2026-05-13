@@ -56,3 +56,6 @@
 (package! reverse-im)
 (package! clipetty)
 (package! envrc)
+
+;; Auto-install missing Tree-sitter grammars (python-ts-mode, etc.) for :tools tree-sitter.
+(package! treesit-auto)

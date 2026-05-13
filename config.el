@@ -21,13 +21,20 @@
 ;; ==========================================
 ;; 0. TREE-SITTER (shared; not app-specific)
 ;; ==========================================
-;; Install missing grammars on demand (Python, etc.). Requires :tools tree-sitter in init.el.
-;; Typst URL stays in `modules/app/noteworthy/config.el' (loads before this file’s deferred block).
-(after! tree-sitter
+;; Doom `:tools tree-sitter' configures built-in `treesit` (features `treesit'), not a `tree-sitter'
+;; package: `(after! tree-sitter)' is a no-op — nothing `(provide \'tree-sitter)'. Wrong hook ⇒ no prompts,
+;; no `treesit-auto', and grammar install settings never applied ⇒ `*-ts-mode' blows up missing .so instead.
+;;
+;; `treesit-auto-install-grammar`: Doom compat default is `ask', but installs need `gcc'/`clang' + git on PATH.
+;; `treesit-auto': needs `global-treesit-auto-mode' for automatic install-before-open behavior.
+;; Typst grammar: `modules/app/noteworthy/config.el`.
+(after! treesit
+  (setq treesit-auto-install-grammar 'always)
   (use-package! treesit-auto
     :config
     (setq treesit-auto-install t)
-    (treesit-auto-add-to-auto-mode-alist 'all)))
+    (treesit-auto-add-to-auto-mode-alist 'all)
+    (global-treesit-auto-mode +1)))
 
 ;; ==========================================
 ;; 1. IDENTITY & VISUALS

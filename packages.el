@@ -53,6 +53,10 @@
 ;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
 ;; (unpin! t)
 
+;; Doom pins dirvish with (:repo "latiagertrutis/dirvish"); canonical upstream is alexluigit/dirvish.
+;; Matching URL avoids `doom sync’ failing when ~/.emacs.d/.local/straight/repos/dirvish is alexluigit.
+(package! dirvish :recipe (:host github :repo "alexluigit/dirvish"))
+
 (package! reverse-im)
 (package! clipetty)
 (package! envrc)

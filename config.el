@@ -124,9 +124,56 @@
 (use-package! clipetty
   :hook (after-init . global-clipetty-mode))
 
-;; xwidgets
+;; xwidgets — Latin keys in edit mode are routed via `xwidget-webkit-pass-command-event'.
+;; Evil's maps sit above that minor mode map, so edit mode looked broken (IME/fcitx5 uses a
+;; different path and still worked). Use Evil's intercept map while edit mode is on.
 (when (featurep 'xwidget-internal)
-  (setq browse-url-browser-function #'xwidget-webkit-browse-url))
+  (setq browse-url-browser-function #'xwidget-webkit-browse-url)
+
+  (defun my/xwidget-webkit--evil-sync-edit-pass-through ()
+    "Give `xwidget-webkit-edit-mode-map' precedence over Evil while edit mode is active.
+
+The edit map substitutes `self-insert-command' bindings into
+`xwidget-webkit-pass-command-event' (see Emacs `xwidget.el'); Evil must not mask that."
+    (when (featurep 'evil)
+      (cond (xwidget-webkit-edit-mode
+             (evil-make-intercept-map xwidget-webkit-edit-mode-map nil)
+             (evil-normalize-keymaps))
+            (t
+             ;; Shared keymap: drop intercept only if no buffer still has edit mode on.
+             (unless (seq-some (lambda (buf)
+                                 (and (buffer-live-p buf)
+                                      (buffer-local-value 'xwidget-webkit-edit-mode buf)))
+                               (buffer-list))
+               (define-key xwidget-webkit-edit-mode-map [intercept-state] nil))
+             (evil-normalize-keymaps)))))
+
+  (with-eval-after-load 'xwidget
+    (add-hook 'xwidget-webkit-edit-mode-hook #'my/xwidget-webkit--evil-sync-edit-pass-through))
+
+  (defun my/xwidget-webkit-toggle-browser-typing ()
+    "Toggle Chrome-like typing: Latin keys go to WebKit via `xwidget-webkit-edit-mode'.
+
+Evil is synced so its keymaps do not block `xwidget-webkit-pass-command-event'.
+Toggle again for xwidget navigation keys (`r', `g', …)."
+    (interactive)
+    (unless (derived-mode-p 'xwidget-webkit-mode)
+      (user-error "Not in an xwidget-webkit buffer"))
+    (if (bound-and-true-p xwidget-webkit-edit-mode)
+        (progn
+          (xwidget-webkit-edit-mode -1)
+          (when (fboundp 'evil-normal-state)
+            (evil-normal-state))
+          (message "WebKit typing OFF (xwidget command keys)"))
+      (xwidget-webkit-edit-mode +1)
+      (when (fboundp 'evil-insert-state)
+        (evil-insert-state))
+      (message "WebKit typing ON (Latin keys to page)")))
+
+  (map! :map xwidget-webkit-mode-map
+        :n "C-c C-k" #'my/xwidget-webkit-toggle-browser-typing
+        :i "C-c C-k" #'my/xwidget-webkit-toggle-browser-typing
+        :v "C-c C-k" #'my/xwidget-webkit-toggle-browser-typing))
 
 ;; ==========================================
 ;; 3. PYTHON & REPL (Fixes VS Code Corruption)

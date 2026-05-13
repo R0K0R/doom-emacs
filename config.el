@@ -184,9 +184,12 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   (setenv "VSCODE_IPC_HOOK_CLI" nil)
   (setenv "VSCODE_SHELL_INTEGRATION" nil)
   (setq python-shell-interpreter "python3"
-        python-shell-interpreter-args "-i"))
+        python-shell-interpreter-args "-i")
   (setenv "QT_QPA_PLATFORM" "xcb")
   (setenv "QT_AUTO_SCREEN_SCALE_FACTOR" "1")
+  ;; Still disable this—it's the #1 cause of TRAMP hangs
+  (setq python-shell-completion-native-enable nil)
+  (advice-add '+python-executable-find :around #'my/+python-executable-find-with-fallback))
 
 ;; ==========================================
 ;; 4. LSP & INTELLIGENCE (BasedPyright + Ruff)
@@ -415,14 +418,32 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 (setq auth-sources '("~/.authinfo.gpg" "~/.authinfo" "~/.netrc"))
 
 ;; ==========================================
-;; 9. ANACONDA SETUP
+;; 9. CONDA (optional install + REPL prefers global Python when inactive)
 ;; ==========================================
+;; Doom `+python-executable-find' calls into conda.el even when no env is active (slow / errors if
+;; conda binary missing). We advise it below to use `executable-find' first when neither venv nor
+;; conda is activated. Append conda `bin' so `python3' stays Nix/system-first on PATH.
 
-(let ((conda-path "/home/r0k0r/anaconda3/bin/"))
-  (setenv "PATH" (concat conda-path ":" (getenv "PATH")))
-  (add-to-list 'exec-path conda-path))
+(let ((conda-home (expand-file-name "~/anaconda3")))
+  (when (file-directory-p conda-home)
+    (setq conda-anaconda-home conda-home)
+    (let ((conda-bin (expand-file-name "bin" conda-home)))
+      (when (file-directory-p conda-bin)
+        (add-to-list 'exec-path conda-bin t)
+        (setenv "PATH" (concat (getenv "PATH") path-separator conda-bin))))))
 
-(setq conda-anaconda-home "/home/r0k0r/anaconda3/")
+(defun my/+python-executable-find-with-fallback (orig-fn exe)
+  "When no venv and no active conda env, use EXE from PATH before conda inference."
+  (if (file-name-absolute-p exe)
+      (funcall orig-fn exe)
+    (let ((venv-root (bound-and-true-p python-shell-virtualenv-root))
+          (conda-active (bound-and-true-p conda-env-current-path)))
+      (if (or venv-root conda-active)
+          (funcall orig-fn exe)
+        (or (executable-find exe)
+            (condition-case nil
+                (funcall orig-fn exe)
+              (error nil)))))))
 
 ;; ==========================================
 ;; 10. AUCTEX SETUP
@@ -464,10 +485,6 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   (envrc-global-mode)
   ;; This is the critical line for your TRAMP / SSH setup
   (setq envrc-remote-enable t))
-
-(after! python
-  ;; Still disable this—it's the #1 cause of TRAMP hangs
-  (setq python-shell-completion-native-enable nil))
 
 (after! tramp
   ;; Ensure TRAMP picks up the path changes from direnv

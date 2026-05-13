@@ -165,7 +165,7 @@
        ;;plantuml          ; diagrams for confusing people more
        ;;graphviz          ; diagrams for confusing yourself even more
        ;;purescript        ; javascript, but functional
-       (python +lsp +pyright +conda +venv)            ; beautiful is better than ugly
+       (python +lsp +pyright +conda +venv)            ; conda.el optional; see config for PATH / REPL fallback
        ;;qt                ; the 'cutest' gui framework ever
        ;;racket            ; a DSL for DSLs
        ;;raku              ; the artist formerly known as perl6

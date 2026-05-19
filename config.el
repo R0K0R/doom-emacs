@@ -296,6 +296,12 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
         (pdf-path (expand-file-name "~/Downloads/Calculus9eStewart_ISBN 978-1-337-62418-3 Red cover.pdf")))
     (noteworthy-init project-dir pdf-path)))
 
+(defun calculus1-noteworthy-no-pdf ()
+  "Initialize Calculus I KSA Course"
+  (interactive)
+  (let ((project-dir (expand-file-name "~/Typst/KSA/calculus-1/"))
+    (noteworthy-init project-dir pdf-path)))
+
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES
 ;; ==========================================

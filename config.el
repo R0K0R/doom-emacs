@@ -283,7 +283,7 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
                  host "127.0.0.1"
                  :request "launch"
                  :type "python"
-                 :cwd ,(lambda () (file-name-directory (buffer-file-name)))))))
+                 :cwd ,(lambda () (file-name-directory (buffer-file-name))))))
 
 ;; ==========================================
 ;; 6. NOTEWORTHY COURSES

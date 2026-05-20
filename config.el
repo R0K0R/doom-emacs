@@ -275,7 +275,7 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   ;; Wipe old attempts
   (setq dape-configs (assoc-delete-all 'python-run-file dape-configs))
 
-(add-to-list 'dape-configs
+  (add-to-list 'dape-configs
                `(python-run-file
                  command "python3"
                  args ("-m" "debugpy" "--listen" "0.0.0.0:5678" "--wait-for-client" ,(lambda () (buffer-file-name)))
@@ -283,7 +283,7 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
                  host "127.0.0.1"
                  :request "launch"
                  :type "python"
-                 :cwd ,(lambda () (file-name-directory (buffer-file-name))))))
+                 :cwd ,(lambda () (file-name-directory (buffer-file-name)))))))
 
 ;; ==========================================
 ;; 6. NOTEWORTHY COURSES
@@ -297,10 +297,10 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
     (noteworthy-init project-dir pdf-path)))
 
 (defun calculus1-noteworthy-no-pdf ()
-  "Initialize Calculus I KSA Course"
+  "Initialize Calculus I KSA Course without a PDF"
   (interactive)
-  (let ((project-dir (expand-file-name "~/Typst/KSA/calculus-1/"))
-    (noteworthy-init project-dir pdf-path)))
+  (let ((project-dir (expand-file-name "~/Typst/KSA/calculus-1/")))
+    (noteworthy-init project-dir nil)))
 
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES

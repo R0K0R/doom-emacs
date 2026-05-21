@@ -15,11 +15,6 @@
   ;; Mapping it to 'javascript' usually works well for braces {} and brackets []
   (add-to-list 'dtrt-indent-hook-mapping-list '(typst-ts-mode javascript)))
 
-(use-package! treesit
-  :config
-  (add-to-list 'treesit-language-source-alist
-               '(typst "https://github.com/uben0/tree-sitter-typst")))
-
 (use-package! typst-preview
   :config
   (setq typst-preview-executable "tinymist")

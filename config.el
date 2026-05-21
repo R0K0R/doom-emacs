@@ -26,35 +26,15 @@
 ;; no `treesit-auto', and grammar install settings never applied ⇒ `*-ts-mode' blows up missing .so instead.
 ;;
 ;; `treesit-auto-install-grammar`: Doom compat default is `ask', but installs need `gcc'/`clang' + git on PATH.
-;; `treesit-auto': installs in `treesit-auto--on' *after* major mode is set — too late for `typst-ts-mode',
-;; which user-errors when the grammar is missing. Route `.typ' through a fallback mode + `set-tree-sitter!' so
-;; Doom's `major-mode-remap' advice can build the grammar first (`treesit-auto-install-grammar' = `always').
+;; `treesit-auto': needs `global-treesit-auto-mode' for automatic install-before-open behavior.
+;; Typst grammar: `modules/app/noteworthy/config.el`.
 (after! treesit
   (setq treesit-auto-install-grammar 'always)
-
-  (define-derived-mode typst-mode text-mode "Typst"
-    "Fallback Typst mode; remapped to `typst-ts-mode' when the grammar is ready.")
-
-  (set-tree-sitter! 'typst-mode 'typst-ts-mode 'typst)
-
-  (defun +typst--prefer-fallback-auto-mode ()
-    "Keep `.typ' on `typst-mode' so grammar install runs before `typst-ts-mode'."
-    (cl-callf2 rassq-delete-all 'typst-ts-mode auto-mode-alist)
-    (add-to-list 'auto-mode-alist '("\\.typ\\'" . typst-mode)))
-
-  (+typst--prefer-fallback-auto-mode)
-
   (use-package! treesit-auto
     :config
     (setq treesit-auto-install t)
     (treesit-auto-add-to-auto-mode-alist 'all)
-    ;; `treesit-auto-add-to-auto-mode-alist' 'all re-adds `typst-ts-mode' without checking grammar.
-    (+typst--prefer-fallback-auto-mode)
-    (global-treesit-auto-mode +1))
-
-  (after! typst-ts-mode
-    ;; `typst-ts-mode.el' also registers itself in `auto-mode-alist' at load time.
-    (+typst--prefer-fallback-auto-mode)))
+    (global-treesit-auto-mode +1)))
 
 ;; ==========================================
 ;; 1. IDENTITY & VISUALS

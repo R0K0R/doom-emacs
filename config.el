@@ -501,6 +501,19 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 ;; ==========================================
 
 (after! lsp-dart
+  ;; Emacs daemon on NixOS often lacks profile PATH, so lsp-dart cannot find flutter/dart.
+  (unless lsp-dart-flutter-sdk-dir
+    (setq lsp-dart-flutter-sdk-dir
+          (or (getenv "FLUTTER_ROOT")
+              (-some-> (executable-find "flutter")
+                file-truename
+                (locate-dominating-file "bin")
+                file-truename)
+              (-some-> (format "/etc/profiles/per-user/%s/bin/flutter" (user-login-name))
+                expand-file-name
+                (and (file-exists-p it) (file-truename it))
+                (locate-dominating-file "bin")
+                file-truename))))
   ;; Default order is `(lsp-root closest-pubspec)`. If the LSP workspace is a parent folder
   ;; without pubspec.yaml (repo root with `flutter_demo/` inside), `lsp-workspace-root' wins,
   ;; `lsp-dart-flutter-project-p` is nil, and test runs use Dart's test runner instead of

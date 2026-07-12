@@ -72,6 +72,10 @@
 ;; Fuck yea glassmorphism
 (set-frame-parameter nil 'alpha-background 65)
 (diff-hl-margin-mode 1)
+(add-to-list 'default-frame-alist '(alpha-background . 85))
+(add-hook 'doom-init-ui-hook
+          (lambda ()
+            (set-frame-parameter nil 'alpha-background 85)))
 
 ;; ==========================================
 ;; 2. SYSTEM & KEYBINDINGS

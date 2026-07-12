@@ -69,6 +69,11 @@
 ;; tinymist color inverting disable
 (setq typst-preview-invert-colors "never")
 
+;; Fuck yea glassmorphism
+
+(set-frame-parameter nil 'alpha-background 65)
+(diff-hl-margin-mode 1)
+
 ;; ==========================================
 ;; 2. SYSTEM & KEYBINDINGS
 ;; ==========================================

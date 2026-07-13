@@ -63,3 +63,9 @@
 
 ;; Auto-install missing Tree-sitter grammars (python-ts-mode, etc.) for :tools tree-sitter.
 (package! treesit-auto)
+
+;; Arduino: arduino-mode for .ino major mode (cc-mode derived), arduino-cli-mode
+;; for compile/upload/board management via the system arduino-cli (installed
+;; through nixos, flakes/nixos packages/hosts/galaxybook4-pro360.nix).
+(package! arduino-mode)
+(package! arduino-cli-mode)

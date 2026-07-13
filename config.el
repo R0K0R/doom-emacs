@@ -540,3 +540,10 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
        (hm-local (expand-file-name "home-manager/doom-machine-local.el" xdg)))
   (when (file-readable-p hm-local)
     (load hm-local nil 'nomessage)))
+
+;; Arduino: enable arduino-cli keybindings/compilation in .ino buffers.
+(use-package! arduino-cli-mode
+  :hook (arduino-mode . arduino-cli-mode)
+  :custom
+  (arduino-cli-warnings 'all)
+  (arduino-cli-verify t))

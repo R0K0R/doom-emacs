@@ -77,6 +77,35 @@
           (lambda ()
             (set-frame-parameter nil 'alpha-background 65)))
 
+;; Any custom fringe bitmap (define-fringe-bitmap) -- vi-tilde-fringe's "~"
+;; past-EOB indicator, flycheck's error/warning markers, etc. -- composites
+;; as solid opaque black instead of blending with the transparent frame.
+;; pgtk/Cairo fixed the general fringe *background fill* for
+;; alpha-background in Emacs 30, but bitmap glyphs drawn on top of that
+;; fill still hit a broken path (unresolved upstream: bug#70697's "insets"
+;; half; both affected faces come back fully `unspecified`, not a face
+;; misconfig). vi-tilde-fringe is a thin wrapper around Emacs's own
+;; built-in indicate-empty-lines + fringe-indicator-alist, so this is a
+;; genuine Emacs-core gap, not a third-party bug.
+;;
+;; Tried and DISPROVEN: (inhibit-double-buffering . t) on the frame. A
+;; forced (redraw-frame) after setting it produced one clean screenshot,
+;; which looked like a fix, but normal incremental redraws (scrolling,
+;; editing) still hit the broken compositing path -- confirmed by
+;; reproducing the black boxes again afterwards with the parameter still
+;; t. Don't re-try this.
+;;
+;; Real fix: don't put custom bitmaps in the fringe at all.
+;;   - vi-tilde-fringe: no margin-based equivalent readily available, so
+;;     just disabled.
+;;   - flycheck: has a first-class non-fringe mode -- moved to the right
+;;     margin (diff-hl-margin-mode above already owns the left margin, so
+;;     right avoids a collision). Text-based margin indicators use the
+;;     normal glyph rendering path, which was never broken (margin) --
+;;     confirmed by diff-hl-margin-mode already working correctly.
+(global-vi-tilde-fringe-mode -1)
+(setq-default flycheck-indication-mode 'right-margin)
+
 ;; ==========================================
 ;; 2. SYSTEM & KEYBINDINGS
 ;; ==========================================

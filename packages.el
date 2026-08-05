@@ -61,6 +61,10 @@
 (package! clipetty)
 (package! envrc)
 
+;; Kitty terminal image support
+(package! kitty-graphics
+  :recipe (:host github :repo "cashmeredev/kitty-graphics.el"))
+
 ;; Auto-install missing Tree-sitter grammars (python-ts-mode, etc.) for :tools tree-sitter.
 (package! treesit-auto)
 

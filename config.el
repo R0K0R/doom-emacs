@@ -32,7 +32,7 @@
   (setq treesit-auto-install-grammar 'always)
   (use-package! treesit-auto
     :config
-    (setq treesit-auto-install t)
+    (setq treesit-auto-install nil)
     (treesit-auto-add-to-auto-mode-alist 'all)
     (global-treesit-auto-mode +1)))
 
@@ -340,24 +340,11 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
     (noteworthy-init project-dir nil)))
 
 ;; ==========================================
-;; 7. FOOT TUI IMAGES
+;; 7. KITTY TUI IMAGES
 ;; ==========================================
 
-;; 1. Force Emacs to allow image/PDF processing in the TUI
-(setq mml-smime-use 'epg) ; unrelated but helps with some rendering errors
-
-;; 2. The critical hack for pdf-tools in terminal
-(after! pdf-tools
-  (setq pdf-view-use-scaling t
-        pdf-view-use-imagemagick t)
-  ;; This prevents pdf-tools from demanding a GUI frame
-  (advice-add #'pdf-info-renderpage :around
-              (lambda (orig-fun &rest args)
-                (if (display-graphic-p)
-                    (apply orig-fun args)
-                  ;; If in TUI, we force it to treat the terminal as capable
-                  (let ((display-graphic-p (lambda () t)))
-                    (apply orig-fun args))))))
+(setq kitty-graphics-enable-video t)
+(kitty-graphics-setup)
 
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES

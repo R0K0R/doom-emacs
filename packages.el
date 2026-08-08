@@ -55,15 +55,22 @@
 
 ;; Doom pins dirvish with (:repo "latiagertrutis/dirvish"); canonical upstream is alexluigit/dirvish.
 ;; Matching URL avoids `doom sync’ failing when ~/.emacs.d/.local/straight/repos/dirvish is alexluigit.
-(package! dirvish :recipe (:host github :repo "alexluigit/dirvish"))
+;; :pin required for nix-doom-emacs-unstraightened: dirvish also exists in emacs-overlay's
+;; package set, so without a pin it silently resolves to emacs-overlay's dirvish instead
+;; of this recipe. Local straight checkout had drifted to the wrong fork (latiagertrutis)
+;; relative to this recipe, so pinned to alexluigit/dirvish's actual current HEAD instead.
+(package! dirvish :recipe (:host github :repo "alexluigit/dirvish")
+  :pin "bf164ee21e128837ede59be03836a9900c4a41be")
 
 (package! reverse-im)
 (package! clipetty)
 (package! envrc)
 
 ;; Kitty terminal image support
+;; :pin required for nix-doom-emacs-unstraightened (see dirvish note above for why).
 (package! kitty-graphics
-  :recipe (:host github :repo "cashmeredev/kitty-graphics.el"))
+  :recipe (:host github :repo "cashmeredev/kitty-graphics.el")
+  :pin "13666d4eb2ef4eeed24697c0326368eff3667dce")
 
 ;; Auto-install missing Tree-sitter grammars (python-ts-mode, etc.) for :tools tree-sitter.
 (package! treesit-auto)

@@ -3,11 +3,16 @@
 
 (package! websocket)
 (package! dtrt-indent)
+;; :pin required for nix-doom-emacs-unstraightened: neither package exists in
+;; nixpkgs/emacs-overlay, so without a pin resolution fails outright (noteworthy
+;; points at an unpublished private repo and can only ever resolve via :pin).
 (package! typst-preview
-  :recipe (:type git :host github :repo "havarddj/typst-preview.el"))
+  :recipe (:type git :host github :repo "havarddj/typst-preview.el")
+  :pin "7e89cf105e4fef5e79977a4a790d5b3b18d305f6")
 
 (package! noteworthy
-  :recipe (:type git :host github :repo "R0K0R/noteworthy.el"))
+  :recipe (:type git :host github :repo "R0K0R/noteworthy.el")
+  :pin "86647eb9bd03c999e527a9221dc58270939846d9")
 
 ;; Real-time collaboration package (local for now)
 ;;(package! noteworthy-collab

@@ -15,10 +15,8 @@
   ;; Mapping it to 'javascript' usually works well for braces {} and brackets []
   (add-to-list 'dtrt-indent-hook-mapping-list '(typst-ts-mode javascript)))
 
-(use-package! treesit
-  :config
-  (add-to-list 'treesit-language-source-alist
-               '(typst "https://github.com/uben0/tree-sitter-typst")))
+;; typst grammar comes from Nix (treesit-grammars.with-all-grammars, see
+;; config.el's TREESIT_GRAMMAR_DIR wiring) -- no install-time source needed.
 
 (use-package! typst-preview
   :config

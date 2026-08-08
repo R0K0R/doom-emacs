@@ -22,14 +22,18 @@
 ;; 0. TREE-SITTER (shared; not app-specific)
 ;; ==========================================
 ;; Doom `:tools tree-sitter' configures built-in `treesit` (features `treesit'), not a `tree-sitter'
-;; package: `(after! tree-sitter)' is a no-op — nothing `(provide \'tree-sitter)'. Wrong hook ⇒ no prompts,
-;; no `treesit-auto', and grammar install settings never applied ⇒ `*-ts-mode' blows up missing .so instead.
+;; package: `(after! tree-sitter)' is a no-op — nothing `(provide \'tree-sitter)'. Wrong hook, so use `treesit'.
 ;;
-;; `treesit-auto-install-grammar`: Doom compat default is `ask', but installs need `gcc'/`clang' + git on PATH.
-;; `treesit-auto': needs `global-treesit-auto-mode' for automatic install-before-open behavior.
-;; Typst grammar: `modules/app/noteworthy/config.el`.
+;; Grammars are Nix-provided (treesit-grammars.with-all-grammars, exposed via
+;; $TREESIT_GRAMMAR_DIR -- see modules/home/r0k0r/editors/emacs/doom-config.nix
+;; in the flake repo), not fetched/compiled at runtime: `treesit-auto-install-grammar'
+;; must stay nil so `*-ts-mode' never shells out to git/gcc on its own.
+;; `treesit-auto' still needs `global-treesit-auto-mode' to remap `python-mode' etc.
+;; to its `-ts-mode' once a grammar is available.
 (after! treesit
-  (setq treesit-auto-install-grammar 'always)
+  (when-let ((dir (getenv "TREESIT_GRAMMAR_DIR")))
+    (add-to-list 'treesit-extra-load-path dir))
+  (setq treesit-auto-install-grammar nil)
   (use-package! treesit-auto
     :config
     (setq treesit-auto-install nil)

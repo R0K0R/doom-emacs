@@ -12,7 +12,7 @@
 
 (package! noteworthy
   :recipe (:type git :host github :repo "R0K0R/noteworthy.el")
-  :pin "86647eb9bd03c999e527a9221dc58270939846d9")
+  :pin "0c9bc64a68a2871b66904034c73a5e81772fd3e4")
 
 ;; Real-time collaboration package (local for now)
 ;;(package! noteworthy-collab

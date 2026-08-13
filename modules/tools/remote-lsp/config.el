@@ -203,6 +203,40 @@ Run `M-x +remote-lsp/pick-watch-exclusions' to exclude large directories."
 
 
 ;;; ------------------------------------------------------------------
+;;; 3b. No file-notify watches on remote paths, for ANY package
+;;; ------------------------------------------------------------------
+;; The guard above only covers lsp-mode. Treemacs hits the same wall
+;; independently: `treemacs-filewatch-mode' watches every directory it
+;; displays, and over TRAMP each watch is a separate remote `gio monitor' (or
+;; `inotifywait') PROCESS. Showing the yulee project opened 49 of them and
+;; pinned a core at 95% until the mode was turned off -- measured, 0.0% after.
+;;
+;; This is inherent to remote file notification, not specific to either
+;; package, so guard at the one choke point they share. Refusing with
+;; `file-notify-error' rather than returning nil is deliberate: it is the error
+;; `file-notify-add-watch' already signals when watching is unsupported, so
+;; callers handle it. Treemacs in particular wraps its call in
+;;   (treemacs-with-ignored-errors
+;;     ((file-notify-error "No file notification program found")) ...)
+;; which matches on that message and silently skips -- so keep the wording.
+;;
+;; Cost of doing this: changes made outside Emacs on the remote are not
+;; auto-detected (no auto-revert, no Treemacs auto-refresh there). Your own
+;; edits are unaffected. Set to nil to opt back in.
+(defvar +remote-lsp-inhibit-remote-file-watches t
+  "When non-nil, refuse `file-notify-add-watch' on remote (TRAMP) paths.")
+
+(defadvice! +remote-lsp--no-remote-file-notify-a (fn file &rest args)
+  "Refuse remote file-notify watches; each one is a remote process."
+  :around #'file-notify-add-watch
+  (if (and +remote-lsp-inhibit-remote-file-watches
+           (file-remote-p file))
+      (signal 'file-notify-error
+              (list "No file notification program found" file))
+    (apply fn file args)))
+
+
+;;; ------------------------------------------------------------------
 ;;; 4. pyright vs basedpyright: decide per host, not once at load
 ;;; ------------------------------------------------------------------
 ;; lsp-pyright registers exactly two clients, `pyright' and `pyright-remote';

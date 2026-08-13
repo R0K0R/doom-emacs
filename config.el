@@ -237,8 +237,12 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 ;; ==========================================
 
 (after! lsp-mode
-  (setq lsp-completion-provider :capf
-        lsp-prefer-capf t)
+  ;; :none, not :capf/t -- Doom runs corfu, which consumes
+  ;; `completion-at-point-functions' natively, so lsp must not try to configure
+  ;; a backend itself. Left at t (its "auto-configure company-mode" value) it
+  ;; warns "Unable to autoconfigure company-mode" on every buffer, since company
+  ;; isn't installed at all here.
+  (setq lsp-completion-provider :none)
 
   ;; 1. THE FIX: Allow all valid clients, and STOP disabling pyright
   (setq lsp-enabled-clients nil)
@@ -249,12 +253,12 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 
   (add-to-list 'lsp-language-id-configuration '(python-ts-mode . "python")))
 
-;; Ensure lsp-mode attaches to tree-sitter Python
-(defun my-python-setup-h ()
-  (lsp-deferred))
-
-(add-hook 'python-mode-hook #'my-python-setup-h)
-(add-hook 'python-ts-mode-hook #'my-python-setup-h)
+;; No hand-rolled `lsp-deferred' hook here: Doom's (python +lsp) flag already
+;; puts `lsp!' on BOTH `python-mode-local-vars-hook' and
+;; `python-ts-mode-local-vars-hook', so tree-sitter Python is covered. Adding a
+;; second starter on the main mode hook started the server twice per buffer --
+;; visible as duplicated "Connected to [pyright-remote:...]" and
+;; "Received redundant open text document command for ...".
 
 ;; Prefer LSP + yasnippet CAPF first, but keep Doom's cape-dabbrev / cape-file hooks.
 ;; Raw `lsp-completion-at-point' errors if invoked before a server is ready or when

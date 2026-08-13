@@ -516,6 +516,7 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 ;; ==========================================
 
 (after! tramp
+  ;; Also picks up PATH changes from direnv (envrc, below).
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
 
 (use-package! envrc
@@ -523,10 +524,6 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   (envrc-global-mode)
   ;; This is the critical line for your TRAMP / SSH setup
   (setq envrc-remote-enable t))
-
-(after! tramp
-  ;; Ensure TRAMP picks up the path changes from direnv
-  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
 
 ;; ==========================================
 ;; 13. Flutter / Dart LSP

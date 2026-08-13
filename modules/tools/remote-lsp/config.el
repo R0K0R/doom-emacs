@@ -200,3 +200,64 @@ Run `M-x +remote-lsp/pick-watch-exclusions' to exclude large directories."
 ;; Without this a `.dir-locals.el' in a REMOTE project root is ignored outright
 ;; (the default is nil), and everything the picker writes silently does nothing.
 (setq enable-remote-dir-locals t)
+
+
+;;; ------------------------------------------------------------------
+;;; 4. pyright vs basedpyright: decide per host, not once at load
+;;; ------------------------------------------------------------------
+;; lsp-pyright registers exactly two clients, `pyright' and `pyright-remote';
+;; there is no basedpyright client. Which BINARY they run comes from
+;; `lsp-pyright-langserver-command', so picking the flavour is a per-host
+;; question -- and the hosts genuinely disagree:
+;;
+;;   laptop            basedpyright only
+;;   yulee (plain)     pyright only
+;;   qas-dev container basedpyright only
+;;
+;; Deciding once at load time (whatever host happened to be current when
+;; lsp-pyright loaded) is therefore wrong for every other host, and shows up as
+;; "servers support current file but do not have automatic installation".
+;;
+;; Both resolution paths can be made dynamic:
+;;   - `pyright-remote' builds its command in a lambda at connect time, so a
+;;     buffer-local `lsp-pyright-langserver-command' is honoured.
+;;   - the local `pyright' client goes through `lsp-package-path' -> the
+;;     :system provider -> `lsp--system-path', which calls `lsp-resolve-value'
+;;     on its argument and then `executable-find' with REMOTE=t. So a lambda
+;;     works there and is evaluated against the right host.
+
+(defvar +remote-lsp--pyright-flavor-cache (make-hash-table :test 'equal)
+  "Cache of TRAMP-prefix -> \"basedpyright\"/\"pyright\".
+Keyed by `file-remote-p' so each host/container is probed once.")
+
+(defun +remote-lsp-pyright-flavor ()
+  "Return whichever pyright flavour exists on the current buffer's host.
+Probes via `executable-find' with REMOTE=t, so it works for local files,
+plain SSH, and multi-hop container paths like /ssh:host|docker:name: alike."
+  (let* ((host (or (file-remote-p default-directory) "local"))
+         (cached (gethash host +remote-lsp--pyright-flavor-cache)))
+    (or cached
+        (puthash host
+                 (cond ((executable-find "basedpyright-langserver" t) "basedpyright")
+                       ((executable-find "pyright-langserver" t) "pyright")
+                       ;; Neither present: keep basedpyright so lsp reports a
+                       ;; missing server rather than silently picking a flavour.
+                       (t "basedpyright"))
+                 +remote-lsp--pyright-flavor-cache))))
+
+;;;###autoload
+(defun +remote-lsp/clear-pyright-flavor-cache ()
+  "Forget probed pyright flavours (after installing a server on a host)."
+  (interactive)
+  (clrhash +remote-lsp--pyright-flavor-cache)
+  (message "remote-lsp: pyright flavour cache cleared"))
+
+(after! lsp-pyright
+  (setq lsp-pyright-type-checking-mode "standard")
+  ;; Lambda, not a string: re-resolved per connection on the correct host.
+  (lsp-dependency 'pyright
+                  (list :system (lambda ()
+                                  (concat (+remote-lsp-pyright-flavor) "-langserver"))))
+  (add-hook! '(python-mode-hook python-ts-mode-hook)
+    (defun +remote-lsp--pyright-flavor-h ()
+      (setq-local lsp-pyright-langserver-command (+remote-lsp-pyright-flavor)))))

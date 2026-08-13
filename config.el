@@ -522,20 +522,26 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   ;; Verified: fish history 652 entries before AND after, for both a direct
   ;; connection and the qas-dev container reached through yulee.
   ;;
-  ;; PER-HOST, not global. Setting `tramp-default-method' to "sshx" globally
-  ;; hangs victus-15: there /bin/sh is NixOS' bash-interactive, so sshx's
-  ;;   -t -t -o RemoteCommand="/bin/sh -i"
-  ;; starts an interactive bash that emits bracketed-paste (\e[?2004h) and its
-  ;; own "sh-5.3$" prompt. TRAMP waits for the sentinel prompt it set, never
-  ;; matches, and spins in `tramp-wait-for-regexp' at ~96% CPU until
-  ;; `tramp-connection-timeout'. yulee is unaffected only because its /bin/sh
-  ;; is dash, which emits neither -- which is exactly why testing sshx against
-  ;; yulee alone did not catch it.
-  (add-to-list 'tramp-default-method-alist '("\\`yulee\\'" nil "sshx"))
+  ;; Global: victus-15 runs fish as its login shell too (and had its own
+  ;; TRAMP entries in fish_history), so it wants the same treatment.
+  ;;
+  ;; This was briefly scoped to yulee only, on the theory that sshx hung
+  ;; victus-15 because its /bin/sh is NixOS' bash-interactive and emits
+  ;; bracketed paste. That theory was WRONG -- five consecutive
+  ;; /sshx:victus-15: connections succeed in 1.2-2.1s, -i included; TRAMP
+  ;; handles an interactive sh normally (it sets its own PS1 and runs stty).
+  ;;
+  ;; A real freeze was observed once (two ssh children to victus-15, Emacs
+  ;; spinning at ~96%) but its cause is UNEXPLAINED, not sshx. One untested
+  ;; hypothesis: those connections share ControlPath with ControlMaster=auto
+  ;; and ControlPersist=no, so two started at once (workspace restore plus
+  ;; projectile) could wedge each other. If it recurs, capture `ps --ppid'
+  ;; and the *tramp/...* buffers while it is happening.
+  (setq tramp-default-method "sshx")
 
-  ;; Bound the cost of any future prompt mismatch or sleeping host: the default
-  ;; 60s is long enough to look like a hard freeze when a saved workspace
-  ;; restores a remote buffer on frame creation.
+  ;; Bound the cost of a sleeping host or any future wedge: the default 60s is
+  ;; long enough to look like a hard freeze when a saved workspace restores a
+  ;; remote buffer on frame creation.
   (setq tramp-connection-timeout 10)
   ;; The container is reached through yulee; proxy over sshx too. This also
   ;; replaces the ad-hoc proxy TRAMP creates when you type an explicit

@@ -522,11 +522,21 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   ;; Verified: fish history 652 entries before AND after, for both a direct
   ;; connection and the qas-dev container reached through yulee.
   ;;
-  ;; Set globally rather than per-host: sshx is a drop-in for ssh (it only adds
-  ;; -t -t and RemoteCommand), and any host could have a chatty login shell.
-  ;; Note this governs methodless paths (/yulee:...); an explicit /ssh:yulee:
-  ;; still uses ssh.
-  (setq tramp-default-method "sshx")
+  ;; PER-HOST, not global. Setting `tramp-default-method' to "sshx" globally
+  ;; hangs victus-15: there /bin/sh is NixOS' bash-interactive, so sshx's
+  ;;   -t -t -o RemoteCommand="/bin/sh -i"
+  ;; starts an interactive bash that emits bracketed-paste (\e[?2004h) and its
+  ;; own "sh-5.3$" prompt. TRAMP waits for the sentinel prompt it set, never
+  ;; matches, and spins in `tramp-wait-for-regexp' at ~96% CPU until
+  ;; `tramp-connection-timeout'. yulee is unaffected only because its /bin/sh
+  ;; is dash, which emits neither -- which is exactly why testing sshx against
+  ;; yulee alone did not catch it.
+  (add-to-list 'tramp-default-method-alist '("\\`yulee\\'" nil "sshx"))
+
+  ;; Bound the cost of any future prompt mismatch or sleeping host: the default
+  ;; 60s is long enough to look like a hard freeze when a saved workspace
+  ;; restores a remote buffer on frame creation.
+  (setq tramp-connection-timeout 10)
   ;; The container is reached through yulee; proxy over sshx too. This also
   ;; replaces the ad-hoc proxy TRAMP creates when you type an explicit
   ;; /ssh:yulee|docker:qas-dev: path (those are runtime-only by default, since

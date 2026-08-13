@@ -252,18 +252,22 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 ;; 2. Pyright vs BasedPyright: `lsp-pyright-langserver-command` must match the binary on PATH.
 ;;    With command "basedpyright", lsp looks for `basedpyright-langserver`; Nix only ships
 ;;    `pyright-langserver`, so install fell through to :npm and failed ("Unable to find a way to install").
+;;    :system must be the bare command name, not a pre-resolved `executable-find` path: this
+;;    block runs once at load time (almost always on a local buffer), so baking in the resolved
+;;    absolute path here means every later TRAMP connection -- even to a non-NixOS host -- replays
+;;    that same dead local path instead of re-resolving on the remote at actual use time.
 (after! lsp-pyright
   (setq lsp-pyright-type-checking-mode "standard")
   (cond ((executable-find "basedpyright-langserver" t)
          (setq lsp-pyright-langserver-command "basedpyright")
          (lsp-dependency 'pyright
-           `(:system ,(executable-find "basedpyright-langserver" t))
-           `(:npm :package "basedpyright" :path "basedpyright-langserver")))
+           '(:system "basedpyright-langserver")
+           '(:npm :package "basedpyright" :path "basedpyright-langserver")))
         (t
          (setq lsp-pyright-langserver-command "pyright")
          (lsp-dependency 'pyright
-           `(:system ,(or (executable-find "pyright-langserver" t) "pyright-langserver"))
-           `(:npm :package "pyright" :path "pyright-langserver")))))
+           '(:system "pyright-langserver")
+           '(:npm :package "pyright" :path "pyright-langserver")))))
 
 ;; Ensure lsp-mode attaches to tree-sitter Python
 (defun my-python-setup-h ()

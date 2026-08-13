@@ -501,7 +501,37 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 
 (after! tramp
   ;; Also picks up PATH changes from direnv (envrc, below).
-  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path)
+
+  ;; yulee's login shell is fish. TRAMP's `ssh' method has ssh start the LOGIN
+  ;; shell and then sends one handoff line to exec into /bin/sh:
+  ;;   exec env TERM='dumb' INSIDE_EMACS='...' HISTFILE=~/.tramp_history \
+  ;;        PS1=///<hash> ... /bin/sh -i
+  ;; fish records that before handing over, so ~/.local/share/fish/fish_history
+  ;; fills with TRAMP internals (31 such entries when this was found). TRAMP's
+  ;; own `tramp-histfile-override' does not help: it sets HISTFILE, which fish
+  ;; does not use. fish's `fish_should_add_to_history' hook would, but it does
+  ;; not exist until fish 4.0 (verified: never called on fish 3.7).
+  ;;
+  ;; `sshx' is the built-in answer -- its login args pass
+  ;;   -o RemoteCommand="%l"
+  ;; so ssh runs /bin/sh directly and fish never starts. TRAMP documents the
+  ;; method as being for hosts "where the normal login shell is set up to ask
+  ;; a number of questions when logging in", which is this case.
+  ;;
+  ;; Verified: fish history 652 entries before AND after, for both a direct
+  ;; connection and the qas-dev container reached through yulee.
+  ;;
+  ;; Set globally rather than per-host: sshx is a drop-in for ssh (it only adds
+  ;; -t -t and RemoteCommand), and any host could have a chatty login shell.
+  ;; Note this governs methodless paths (/yulee:...); an explicit /ssh:yulee:
+  ;; still uses ssh.
+  (setq tramp-default-method "sshx")
+  ;; The container is reached through yulee; proxy over sshx too. This also
+  ;; replaces the ad-hoc proxy TRAMP creates when you type an explicit
+  ;; /ssh:yulee|docker:qas-dev: path (those are runtime-only by default, since
+  ;; `tramp-save-ad-hoc-proxies' is nil).
+  (add-to-list 'tramp-default-proxies-alist '("\\`qas-dev\\'" nil "/sshx:yulee:")))
 
 (use-package! envrc
   :config

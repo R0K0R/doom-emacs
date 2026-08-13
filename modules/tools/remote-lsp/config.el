@@ -295,3 +295,21 @@ plain SSH, and multi-hop container paths like /ssh:host|docker:name: alike."
   (add-hook! '(python-mode-hook python-ts-mode-hook)
     (defun +remote-lsp--pyright-flavor-h ()
       (setq-local lsp-pyright-langserver-command (+remote-lsp-pyright-flavor)))))
+
+;; A mode hook alone is NOT enough. Buffers restored by
+;; `doom/quickload-session' (and anything else that sets the major mode without
+;; running its hooks) never get the buffer-local value, so lsp falls back to the
+;; global default -- "pyright", which does not exist in the container -- and
+;; reports "servers support current file but do not have automatic
+;; installation". Observed on a freshly started daemon with the hooks correctly
+;; installed, the flavour cache correct, and the probe working: the restored
+;; buffer still had local?=nil, val="pyright".
+;;
+;; `lsp' and `lsp-deferred' both run in the buffer before client selection, so
+;; setting it there catches every buffer regardless of how its mode was set.
+(defadvice! +remote-lsp--set-pyright-flavor-a (&rest _)
+  "Resolve the pyright flavour for this buffer's host before lsp picks a client."
+  :before '(lsp lsp-deferred)
+  (when (and (derived-mode-p 'python-mode 'python-ts-mode)
+             (fboundp '+remote-lsp-pyright-flavor))
+    (setq-local lsp-pyright-langserver-command (+remote-lsp-pyright-flavor))))

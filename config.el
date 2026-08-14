@@ -522,22 +522,29 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   ;; Verified: fish history 652 entries before AND after, for both a direct
   ;; connection and the qas-dev container reached through yulee.
   ;;
-  ;; Global: victus-15 runs fish as its login shell too (and had its own
-  ;; TRAMP entries in fish_history), so it wants the same treatment.
+  ;; PER-HOST. yulee gets sshx; victus-15 must NOT.
   ;;
-  ;; This was briefly scoped to yulee only, on the theory that sshx hung
-  ;; victus-15 because its /bin/sh is NixOS' bash-interactive and emits
-  ;; bracketed paste. That theory was WRONG -- five consecutive
-  ;; /sshx:victus-15: connections succeed in 1.2-2.1s, -i included; TRAMP
-  ;; handles an interactive sh normally (it sets its own PS1 and runs stty).
+  ;; sshx wedges victus-15 in sustained use. Caught in the act: Emacs at 96.3%
+  ;; CPU and unresponsive, with exactly ONE child --
+  ;;   ssh ... -t -t -o RemoteCommand=/bin/sh -i victus-15
+  ;; -- 11 minutes old. Killing that single process took CPU to 0.0%
+  ;; immediately, so Emacs was spinning on that connection and nothing else.
+  ;; Every stall observed had a victus-15 connection present.
   ;;
-  ;; A real freeze was observed once (two ssh children to victus-15, Emacs
-  ;; spinning at ~96%) but its cause is UNEXPLAINED, not sshx. One untested
-  ;; hypothesis: those connections share ControlPath with ControlMaster=auto
-  ;; and ControlPersist=no, so two started at once (workspace restore plus
-  ;; projectile) could wedge each other. If it recurs, capture `ps --ppid'
-  ;; and the *tramp/...* buffers while it is happening.
-  (setq tramp-default-method "sshx")
+  ;; Do not be fooled by a quick check: a one-shot `directory-files' on a
+  ;; freshly opened /sshx:victus-15: succeeds in 1-2s, five times running. That
+  ;; is what made an earlier attempt at this comment retract the finding. The
+  ;; wedge needs a live buffer and sustained traffic (vc-registered, saves,
+  ;; file-attributes), not a single round trip.
+  ;;
+  ;; The precise mechanism is still unproven -- plausibly the interactive
+  ;; /bin/sh (NixOS bash-interactive here, dash on yulee) plus -t -t, but that
+  ;; is a hypothesis, not a demonstrated cause. The scoping is justified by the
+  ;; reproduction above regardless.
+  ;;
+  ;; Cost: victus-15 keeps writing TRAMP lines into its own fish_history.
+  ;; That is the lesser problem.
+  (add-to-list 'tramp-default-method-alist '("\\`yulee\\'" nil "sshx"))
 
   ;; Bound the cost of a sleeping host or any future wedge: the default 60s is
   ;; long enough to look like a hard freeze when a saved workspace restores a

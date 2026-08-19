@@ -216,6 +216,37 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
         :i "C-c C-k" #'my/xwidget-webkit-toggle-browser-typing
         :v "C-c C-k" #'my/xwidget-webkit-toggle-browser-typing))
 
+;; markdown-mode's preview wraps compiled output in XHTML 1.0 Strict with an
+;; `<?xml?>' declaration (`markdown-add-xhtml-header-and-footer'), which makes
+;; xwidget-webkit parse the page as strict XML. Doom's default
+;; `markdown-xhtml-header-content' is HTML5 (bare `async', unclosed <meta>), and
+;; so is raw HTML common in READMEs (unclosed <img>) -- each is a fatal XML
+;; parse error, so WebKit shows "This page contains the following errors" and
+;; renders nothing past the first one. Fixing individual tags is whack-a-mole;
+;; emit an HTML5 header instead so the forgiving HTML parser is used.
+(after! markdown-mode
+  (defun my/markdown-add-html5-header-and-footer (title)
+    "Wrap an HTML5 header and footer with TITLE around current buffer."
+    (goto-char (point-min))
+    (insert "<!DOCTYPE html>\n"
+            "<html>\n<head>\n"
+            "<meta charset=\"utf-8\">\n"
+            "<title>" (markdown-escape-title title) "</title>\n")
+    (when (> (length markdown-css-paths) 0)
+      (insert (mapconcat #'markdown-stylesheet-link-string markdown-css-paths "\n")))
+    (when (> (length markdown-xhtml-header-content) 0)
+      (insert markdown-xhtml-header-content))
+    (insert "\n</head>\n<body>\n")
+    (when (> (length markdown-xhtml-body-preamble) 0)
+      (insert markdown-xhtml-body-preamble "\n"))
+    (goto-char (point-max))
+    (when (> (length markdown-xhtml-body-epilogue) 0)
+      (insert "\n" markdown-xhtml-body-epilogue))
+    (insert "\n</body>\n</html>\n"))
+
+  (advice-add 'markdown-add-xhtml-header-and-footer
+              :override #'my/markdown-add-html5-header-and-footer))
+
 ;; ==========================================
 ;; 3. PYTHON & REPL (Fixes VS Code Corruption)
 ;; ==========================================

@@ -563,41 +563,6 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   (setq envrc-remote-enable t))
 
 ;; ==========================================
-;; 13. Flutter / Dart LSP
-;; ==========================================
-
-(after! lsp-dart
-  ;; Emacs daemon on NixOS often lacks profile PATH, so lsp-dart cannot find flutter/dart.
-  (unless lsp-dart-flutter-sdk-dir
-    (setq lsp-dart-flutter-sdk-dir
-          (or (getenv "FLUTTER_ROOT")
-              (-some-> (executable-find "flutter")
-                file-truename
-                (locate-dominating-file "bin")
-                file-truename)
-              ;; `-some-->', not `-some->': this branch tests `it' inside an
-              ;; `and', which only the anaphoric arrow binds. With `-some->'
-              ;; the value threads as first arg and `it' is void -- latent
-              ;; until the branch above stopped short-circuiting the `or'
-              ;; (flutter left the system profile 2026-08), then every
-              ;; `require' of lsp-dart died mid-eval-after-load and took
-              ;; lsp-mode's load down with it.
-              (-some--> (format "/etc/profiles/per-user/%s/bin/flutter" (user-login-name))
-                (expand-file-name it)
-                (and (file-exists-p it) (file-truename it))
-                (locate-dominating-file it "bin")
-                (file-truename it)))))
-  ;; Default order is `(lsp-root closest-pubspec)`. If the LSP workspace is a parent folder
-  ;; without pubspec.yaml (repo root with `flutter_demo/` inside), `lsp-workspace-root' wins,
-  ;; `lsp-dart-flutter-project-p` is nil, and test runs use Dart's test runner instead of
-  ;; `flutter test --machine', so *LSP Dart tests* stays on "Spawning test process...".
-  (setq lsp-dart-project-root-discovery-strategies '(closest-pubspec lsp-root))
-  (setq lsp-dart-main-code-lens nil
-        lsp-dart-test-code-lens nil)
-  (remove-hook 'dap-session-created-hook #'lsp-dart-dap--enable-mode)
-  (remove-hook 'dap-terminated-hook #'lsp-dart-dap--disable-mode))
-
-;; ==========================================
 ;; Machine-local overrides (optional, Home Manager–friendly)
 ;; ==========================================
 ;; Editable via Home Manager: ~/.config/home-manager/doom-machine-local.el (declared in home-r0k0r.nix).

@@ -478,7 +478,21 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
         message-send-mail-function 'smtpmail-send-it))
 
 ;; 7. Authentication Source Files
-(setq auth-sources '("~/.authinfo.gpg" "~/.authinfo" "~/.netrc"))
+;; Outside the flake ON PURPOSE, following the same convention as
+;; features/{headscale,openvpn} in the nixos repo: Nix declares WHERE a
+;; secret lives, never WHAT it is. The repo's secrets/ dir is gitignored,
+;; and a git flake does not copy untracked files into its store source --
+;; so a secret staged there is invisible to eval anyway, and `git add -f`
+;; would publish it (R0K0R/nixos is a PUBLIC repo). home.file is equally
+;; wrong for this: it copies content into /nix/store, which is
+;; world-readable to every user on the machine regardless of repo
+;; visibility.
+;;
+;; Install (note -o: this is read by Emacs as r0k0r, unlike the
+;; root-owned service secrets in headscale/openvpn, so root:root 600
+;; would silently fail the lookup exactly like a missing file):
+;;   sudo install -Dm600 -o r0k0r -g users ~/.authinfo.gpg /etc/nix/secrets/authinfo.gpg
+(setq auth-sources '("/etc/nix/secrets/authinfo.gpg"))
 
 ;; ==========================================
 ;; 9. CONDA (optional install + REPL prefers global Python when inactive)

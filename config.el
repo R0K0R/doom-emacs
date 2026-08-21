@@ -394,17 +394,27 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   (setq gnus-fetch-old-headers t)
   (setq gnus-keep-backlog 50)
   (setq gnus-select-method '(nntp "news.gmane.io"))
+  ;; `nnimap-user' is REQUIRED here, not optional: both servers share
+  ;; `nnimap-address' "imap.gmail.com" (ksa is Google Workspace), and
+  ;; `nnimap-credentials' looks credentials up with
+  ;; (auth-source-search :host address :port ports :user user).
+  ;; With user nil for both, auth-source returns the SAME first matching
+  ;; line twice and both servers silently log into one account -- "ksa"
+  ;; showing gmail's mail. The SMTP side already disambiguates by From
+  ;; header (`my-gnus-set-smtp-user-safe' below); this is the IMAP
+  ;; equivalent, and it means ~/.authinfo.gpg needs one line per account
+  ;; for the same machine, distinguished by `login'.
   (setq gnus-secondary-select-methods
         '((nnimap "gmail"
                   (nnimap-address "imap.gmail.com")
+                  (nnimap-user "injoystickly@gmail.com")
                   (nnimap-server-port "imaps")
-                  (nnimap-stream ssl)
-                  (nnimap-authinfo-file "~/.authinfo.gpg"))
+                  (nnimap-stream ssl))
           (nnimap "ksa"
                   (nnimap-address "imap.gmail.com")
+                  (nnimap-user "25-095@ksa.hs.kr")
                   (nnimap-server-port "imaps")
-                  (nnimap-stream ssl)
-                  (nnimap-authinfo-file "~/.authinfo.gpg"))
+                  (nnimap-stream ssl))
           (nntp "eternal-september"
                 (nntp-address "news.eternal-september.org"))
           (nntp "solani"

@@ -494,6 +494,27 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 ;;   sudo install -Dm600 -o r0k0r -g users ~/.authinfo.gpg /etc/nix/secrets/authinfo.gpg
 (setq auth-sources '("/etc/nix/secrets/authinfo.gpg"))
 
+;; Prompt for the gpg passphrase in Emacs's own minibuffer.
+;;
+;; `epg-pinentry-mode', NOT `epa-pinentry-mode' -- the latter has been an
+;; obsolete alias since Emacs 27.1 and setting it does nothing useful.
+;;
+;; Why loopback rather than the pinentry-emacs program that gpg-agent.conf
+;; names: pinentry-emacs is not standalone. It speaks a protocol to a
+;; RUNNING Emacs pinentry server -- `pinentry-start' from the `pinentry'
+;; package, which creates $XDG_RUNTIME_DIR/gnupg/S.pinentry. Nothing starts
+;; that here and the library is not even installed, so the socket never
+;; exists, the prompt never reaches anyone, gpg receives no passphrase, and
+;; every auth-source lookup dies with the maximally unhelpful
+;;
+;;   Decryption failed, Bad session key
+;;
+;; on all four Gnus servers at once. Loopback removes that whole hop: epg
+;; passes --pinentry-mode loopback and Emacs reads the passphrase itself,
+;; which is the in-Emacs prompt that was wanted in the first place, minus a
+;; protocol and a package.
+(setq epg-pinentry-mode 'loopback)
+
 ;; ==========================================
 ;; 9. CONDA (optional install + REPL prefers global Python when inactive)
 ;; ==========================================

@@ -478,42 +478,23 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
         message-send-mail-function 'smtpmail-send-it))
 
 ;; 7. Authentication Source Files
-;; Outside the flake ON PURPOSE, following the same convention as
-;; features/{headscale,openvpn} in the nixos repo: Nix declares WHERE a
-;; secret lives, never WHAT it is. The repo's secrets/ dir is gitignored,
-;; and a git flake does not copy untracked files into its store source --
-;; so a secret staged there is invisible to eval anyway, and `git add -f`
-;; would publish it (R0K0R/nixos is a PUBLIC repo). home.file is equally
-;; wrong for this: it copies content into /nix/store, which is
-;; world-readable to every user on the machine regardless of repo
-;; visibility.
+;; Decrypted by agenix at ACTIVATION, not by Emacs at read time.
 ;;
-;; Install (note -o: this is read by Emacs as r0k0r, unlike the
-;; root-owned service secrets in headscale/openvpn, so root:root 600
-;; would silently fail the lookup exactly like a missing file):
-;;   sudo install -Dm600 -o r0k0r -g users ~/.authinfo.gpg /etc/nix/secrets/authinfo.gpg
-(setq auth-sources '("/etc/nix/secrets/authinfo.gpg"))
-
-;; Prompt for the gpg passphrase in Emacs's own minibuffer.
+;; /run/agenix is tmpfs, and the secret is installed owner=r0k0r mode=0400
+;; (features/emacs/nixos.nix, my.emacs.authinfoSecret) -- so this is a plain
+;; readable netrc as far as auth-source is concerned. No gpg, no passphrase,
+;; no pinentry, nothing to prompt: the whole "Decryption failed, Bad session
+;; key" class of failure cannot occur here because nothing is decrypted in
+;; this process.
 ;;
-;; `epg-pinentry-mode', NOT `epa-pinentry-mode' -- the latter has been an
-;; obsolete alias since Emacs 27.1 and setting it does nothing useful.
+;; The ciphertext (age/authinfo.age) is committed to the PUBLIC flake repo,
+;; which is the intended use of age -- the private identity lives at
+;; /etc/agenix/identity.txt, outside the flake, and never enters the store.
 ;;
-;; Why loopback rather than the pinentry-emacs program that gpg-agent.conf
-;; names: pinentry-emacs is not standalone. It speaks a protocol to a
-;; RUNNING Emacs pinentry server -- `pinentry-start' from the `pinentry'
-;; package, which creates $XDG_RUNTIME_DIR/gnupg/S.pinentry. Nothing starts
-;; that here and the library is not even installed, so the socket never
-;; exists, the prompt never reaches anyone, gpg receives no passphrase, and
-;; every auth-source lookup dies with the maximally unhelpful
-;;
-;;   Decryption failed, Bad session key
-;;
-;; on all four Gnus servers at once. Loopback removes that whole hop: epg
-;; passes --pinentry-mode loopback and Emacs reads the passphrase itself,
-;; which is the in-Emacs prompt that was wanted in the first place, minus a
-;; protocol and a package.
-(setq epg-pinentry-mode 'loopback)
+;; No fallback list: a second path only obscures which file a lookup used,
+;; and on a host without agenix this should fail loudly rather than quietly
+;; reading a stale copy.
+(setq auth-sources '("/run/agenix/authinfo"))
 
 ;; ==========================================
 ;; 9. CONDA (optional install + REPL prefers global Python when inactive)

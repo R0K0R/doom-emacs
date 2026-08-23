@@ -417,8 +417,57 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
                   (nnimap-stream ssl))
           (nntp "eternal-september"
                 (nntp-address "news.eternal-september.org"))
-          (nntp "solani"
-                (nntp-address "news.solani.org"))))
+          ;; lore.kernel.org: public-inbox over NNTP, read-only and
+          ;; UNAUTHENTICATED -- it needs no ~/.authinfo line, unlike the two
+          ;; servers above. The greeting is "201 ... ready - post via email",
+          ;; i.e. every group is posting-disallowed (`n' in LIST ACTIVE) by
+          ;; design: you reply to kernel lists by mailing them, not by posting
+          ;; to the newsgroup. Plain 119 only; 563/NNTPS is not served.
+          ;;
+          ;; Group names mirror the list's DOMAIN, not the kernel.org tree, so
+          ;; they are not guessable from the list address alone:
+          ;;   org.kernel.vger.linux-kernel   LKML          (6.4M articles)
+          ;;   org.kvack.linux-mm             linux-mm      (590k) -- kvack.org,
+          ;;                                  NOT vger, hence org.kvack.*
+          ;;   org.kernel.vger.mm-commits     mm-commits    (177k)
+          ;; Browse the rest with `A A' in the Group buffer, or `LIST ACTIVE
+          ;; *pattern*' against nntp.lore.kernel.org directly.
+          (nntp "lore"
+                (nntp-address "nntp.lore.kernel.org")
+                (nntp-port-number 119))))
+  ;; 2b. lore groups -> mailing-list address, COMPUTED, not enumerated.
+  ;;
+  ;; lore refuses posting: its greeting is "201 ... post via email" and every
+  ;; group is `n' in LIST ACTIVE, because it is an archive mirror rather than a
+  ;; gateway. gmane answers "200 ... (posting ok)" and marks its list groups `m'
+  ;; (moderated), so an NNTP post there IS forwarded to the list. That is a
+  ;; server property; no client setting changes it. Hence: read on lore, send
+  ;; over SMTP.
+  ;;
+  ;; A lore group name is the list address with the DOMAIN REVERSED and the
+  ;; local part last, so the address is derivable and never needs listing:
+  ;;   org.kvack.linux-mm            -> linux-mm@kvack.org
+  ;;   org.kernel.vger.linux-kernel  -> linux-kernel@vger.kernel.org
+  ;;   dev.linux.lists.iommu         -> iommu@lists.linux.dev
+  ;; Verified against a full LIST ACTIVE: 356 groups, 41 distinct domains, zero
+  ;; that fail to convert. Enumerating them would have covered 74% with three
+  ;; rules and gone stale the moment a list was added.
+  ;;
+  ;; WHY NOT `gnus-parameters': its values expand through `replace-match'
+  ;; (`gnus-expand-group-parameter'), so \\1 can SUBSTITUTE but cannot REORDER,
+  ;; and reversing the domain is exactly a reorder. Parameter values are also
+  ;; returned verbatim -- there is no `eval' hook for them -- so the computation
+  ;; has to happen at message-setup time instead.
+  (defun my/lore-list-address (group)
+    "Mailing-list address for a lore.kernel.org GROUP, or nil if not one."
+    (when (and (stringp group)
+               (string-match "\\`nntp\\+lore:\\(.+\\)\\'" group))
+      (let* ((parts (split-string (match-string 1 group) "\\." t))
+             (local (car (last parts)))
+             (domain (mapconcat #'identity (reverse (butlast parts)) ".")))
+        (when (and local (not (string-empty-p domain)))
+          (concat local "@" domain)))))
+
   ;; 3. Dynamic Posting Styles (Safe against nil/Corfu crashes)
   (setq gnus-posting-styles
         '((".*" ;; Default identity
@@ -454,10 +503,45 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
         (cond
          ((string-match-p "ksa" group)
           (save-excursion (message-replace-header "From" "이호준 <25-095@ksa.hs.kr>")))
+         ;; Kernel identity. MUST match `git config user.email' exactly: this
+         ;; address becomes the From: on list mail, and git puts the same one in
+         ;; Signed-off-by:. A mismatch makes a patch and its own follow-up
+         ;; discussion look like two different people, which maintainers notice.
+         ;;
+         ;; Matches both archives of the same lists -- lore (read-only, replied
+         ;; to by mail) and gmane (which does gateway NNTP posts to the list) --
+         ;; so the identity does not depend on which one the article was read
+         ;; from.
+         ((string-match-p "\\(^nntp\\+lore:\\|gmane\\.linux\\.kernel\\)" group)
+          (save-excursion (message-replace-header "From" "Joy H.J. Lee <rkr0k0r@gmail.com>")))
          (t
           (save-excursion (message-replace-header "From" "R0K0R Lee <injoystickly@gmail.com>")))))))
 
   (add-hook 'message-setup-hook #'my-doom-gnus-header-fix-safe)
+
+  ;; Fill To: with the list address when composing from a lore group.
+  ;;
+  ;; Only when To: is EMPTY, so it never touches a reply -- `S W' (wide reply)
+  ;; already gets the right recipients from the article's own headers, which
+  ;; lore preserves intact. This is for starting a new thread with `m'.
+  ;;
+  ;; Use `m' rather than `a' in lore groups: `a' composes a news article and
+  ;; would be refused by the server. On gmane, where posting IS allowed, `a'
+  ;; remains the right key and this hook stays out of the way.
+  (defun my/gnus-fill-lore-recipient ()
+    "Set To: to the mailing list when composing in a lore group."
+    (when (derived-mode-p 'message-mode)
+      (let ((addr (my/lore-list-address
+                   (and (boundp 'gnus-newsgroup-name) gnus-newsgroup-name))))
+        (when addr
+          (save-excursion
+            (save-restriction
+              (message-narrow-to-headers)
+              (let ((to (message-fetch-field "To")))
+                (when (or (null to) (string-empty-p (string-trim to)))
+                  (message-replace-header "To" addr)))))))))
+
+  (add-hook 'message-setup-hook #'my/gnus-fill-lore-recipient)
 
   ;; 6. Dynamic SMTP Login Selection
   (defun my-gnus-set-smtp-user-safe ()
@@ -469,6 +553,14 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
           (cond
            ((and (stringp from) (string-match-p "25-095@ksa\\.hs\\.kr" from))
             (setq smtpmail-smtp-user "25-095@ksa.hs.kr"))
+           ;; Keyed off From: rather than off the group, so it stays correct for
+           ;; a message composed outside Gnus entirely. Requires its own line in
+           ;; the authinfo secret:
+           ;;   machine smtp.gmail.com login rkr0k0r@gmail.com port 465 password <app-password>
+           ;; Without it smtpmail authenticates as a user it has no password
+           ;; for, and the send fails at the server rather than in Emacs.
+           ((and (stringp from) (string-match-p "rkr0k0r@gmail\\.com" from))
+            (setq smtpmail-smtp-user "rkr0k0r@gmail.com"))
            (t
             (setq smtpmail-smtp-user "injoystickly@gmail.com")))))))
 

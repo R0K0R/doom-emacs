@@ -105,7 +105,7 @@
        ;;llm               ; when I said you needed friends, I didn't mean...
        (lsp)             ; M-x vscode
        remote-lsp        ; private: make LSP survive over TRAMP
-       magit             ; a git porcelain for Emacs
+       (magit +forge)    ; a git porcelain for Emacs, plus issues/PRs
        ;;make              ; run make tasks from Emacs
        ;;pass              ; password manager for nerds
        pdf               ; pdf enhancements

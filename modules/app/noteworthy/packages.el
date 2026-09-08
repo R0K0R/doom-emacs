@@ -17,11 +17,14 @@
            :files (:defaults "snippets"))
   :pin "299816ec3f282c6de3c655e4bfc5b42eccb7bb36")
 
-;; Real-time collaboration package (local checkout for now; :pin is
-;; meaningless for a local repo, so nix-doom-emacs-unstraightened users need
-;; this path to exist).
+;; Real-time collaboration package. Fetched from GitHub rather than a
+;; :local-repo: a local checkout cannot be resolved deterministically, so
+;; nix-doom-emacs-unstraightened refuses it outright --
+;;   noteworthy-collab: not in nixpkgs or emacs-overlay, not pinned.
+;; Same reason typst-preview and noteworthy above carry pins.
 (package! noteworthy-collab
-  :recipe (:local-repo "~/Typst/noteworthy-collab.el"))
+  :recipe (:type git :host github :repo "R0K0R/noteworthy-collab.el")
+  :pin "a9fd3e2d41371d2ee74d9dcb9646ab4688da25f9")
 
 (package! treemacs-nerd-icons)
 

@@ -15,7 +15,7 @@
   ;; Lisp and info files, which would leave the shipped snippets/ behind.
   :recipe (:type git :host github :repo "R0K0R/noteworthy.el"
            :files (:defaults "snippets"))
-  :pin "0c9bc64a68a2871b66904034c73a5e81772fd3e4")
+  :pin "299816ec3f282c6de3c655e4bfc5b42eccb7bb36")
 
 ;; Real-time collaboration package (local checkout for now; :pin is
 ;; meaningless for a local repo, so nix-doom-emacs-unstraightened users need

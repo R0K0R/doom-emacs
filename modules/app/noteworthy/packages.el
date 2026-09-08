@@ -11,7 +11,10 @@
   :pin "7e89cf105e4fef5e79977a4a790d5b3b18d305f6")
 
 (package! noteworthy
-  :recipe (:type git :host github :repo "R0K0R/noteworthy.el")
+  ;; :files must be spelled out: straight's default directive copies only
+  ;; Lisp and info files, which would leave the shipped snippets/ behind.
+  :recipe (:type git :host github :repo "R0K0R/noteworthy.el"
+           :files (:defaults "snippets"))
   :pin "0c9bc64a68a2871b66904034c73a5e81772fd3e4")
 
 ;; Real-time collaboration package (local checkout for now; :pin is

@@ -36,6 +36,13 @@
     :major-modes '(typst-ts-mode)
     :server-id 'tinymist
     :priority 1
+    ;; tinymist pushes notifications lsp-mode does not know; each one raises a
+    ;; warning, and the *Warnings* popup steals whichever window it lands in --
+    ;; including the preview pane, which stops the xwidget dead (an
+    ;; undisplayed xwidget does not run, so it never opens its websocket).
+    :notification-handlers (lsp-ht ("tinymist/documentOutline" #'ignore)
+                                   ("tinymist/documentMetrics" #'ignore)
+                                   ("tinymist/preview/scrollSource" #'ignore))
     :initialization-options
     (lambda ()
       (let* ((root (or (bound-and-true-p noteworthy-project-root)
@@ -44,10 +51,23 @@
                        default-directory))
              (main (or (bound-and-true-p noteworthy-master-file)
                        (let ((f (expand-file-name "main.typ" root)))
-                         (when (file-exists-p f) f)))))
-        (if main
-            (list :rootPath root :exportOpts (list :input main))
-          (list :rootPath root)))))))
+                         (when (file-exists-p f) f))))
+             ;; Chapter/page folder mapping, same flags `noteworthy.py
+             ;; --print-inputs' emits and `noteworthy.el' passes to
+             ;; typst-preview.  The server needs them too: tinymist's
+             ;; LSP-hosted preview ignores --input given to
+             ;; tinymist.doStartPreview, and without them the template falls
+             ;; back to 0-based page names and fails to find content/<n>/0.typ.
+             (inputs (when (fboundp 'noteworthy-collab-typst-inputs)
+                       (ignore-errors (noteworthy-collab-typst-inputs root)))))
+        ;; The server runs ON the remote host, so paths must be as that host
+        ;; sees them -- handing it "/sshx:host:/p" makes every entry look like
+        ;; it escapes the root.
+        (let ((remote-root (or (file-remote-p root 'localname) root))
+              (remote-main (and main (or (file-remote-p main 'localname) main))))
+          (append (list :rootPath remote-root)
+                  (when remote-main (list :exportOpts (list :input remote-main)))
+                  (when inputs (list :typstExtraArgs (vconcat inputs))))))))))
 
 ;; Start LSP automatically in Typst files
 (add-hook 'typst-ts-mode-hook #'lsp-deferred)
@@ -268,28 +288,32 @@
 ;; Noteworthy Collaboration (Real-time remote editing)
 ;; ============================================================
 
-;;(use-package! noteworthy-collab
-;;  :commands (noteworthy-remote-init noteworthy-collab-disconnect noteworthy-collab-status)
-;;  :config
-;;  ;; Default server URL
-;;  (setq noteworthy-collab-server-url "ws://localhost:8000/ws/emacs")
-;;  
-;;  ;; Your display name for collaboration
-;;  (setq noteworthy-collab-user-name user-login-name)
-;;  
-;;  ;; Terminal command for remote sessions (same as local)
-;;  (setq noteworthy-collab-terminal-cmd +noteworthy-terminal-cmd)
-;;  
-;;  ;; Preview URL (set this to your port-forwarded tinymist URL)
-;;  ;; ssh -L 23625:localhost:23625 yourserver
-;;  ;; (setq noteworthy-collab-preview-url "http://localhost:23625")
-;;  )
-;;
-;;;; Keybindings for collaboration
-;;(map! :leader
-;;      :prefix ("n" . "noteworthy")
-;;      :desc "Remote init" "r" #'noteworthy-remote-init
-;;      :desc "Disconnect" "d" #'noteworthy-collab-disconnect
-;;      :desc "Status" "s" #'noteworthy-collab-status
-;;      :desc "Toggle log" "l" #'noteworthy-collab-toggle-log)
+(use-package! noteworthy-collab
+  :commands (noteworthy-remote-init noteworthy-collab-disconnect noteworthy-collab-status)
+  :config
+  ;; Port 8001 is the Emacs bridge (noteworthy.bridge.server), NOT Studio on
+  ;; 8000 -- Studio speaks binary Yjs, which this client does not.
+  (setq noteworthy-collab-server-url "ws://localhost:8001/ws/emacs")
+
+  ;; Your display name for collaboration
+  (setq noteworthy-collab-user-name user-login-name)
+
+  ;; Terminal command for remote sessions (same as local)
+  (setq noteworthy-collab-terminal-cmd +noteworthy-terminal-cmd)
+
+  ;; Preview: a tinymist session started by hand on the project's machine,
+  ;; with both planes forwarded:
+  ;;   ssh -L 23625:localhost:23625 -L 23626:localhost:23626 yourserver
+  ;; (setq noteworthy-collab-preview-url "http://localhost:23625")
+  ;; (setq noteworthy-collab-preview-control-url "ws://localhost:23626")
+  )
+
+;; Keybindings for collaboration
+(map! :leader
+      :prefix ("n" . "noteworthy")
+      :desc "Remote init" "r" #'noteworthy-remote-init
+      :desc "Disconnect" "d" #'noteworthy-collab-disconnect
+      :desc "Status" "s" #'noteworthy-collab-status
+      :desc "Toggle log" "l" #'noteworthy-collab-toggle-log
+      :desc "Connect preview" "p" #'noteworthy-collab-preview-connect)
 ;;

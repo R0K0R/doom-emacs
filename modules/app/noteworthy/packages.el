@@ -14,9 +14,11 @@
   :recipe (:type git :host github :repo "R0K0R/noteworthy.el")
   :pin "0c9bc64a68a2871b66904034c73a5e81772fd3e4")
 
-;; Real-time collaboration package (local for now)
-;;(package! noteworthy-collab
-;;  :recipe (:local-repo "~/Typst/noteworthy-collab.el"))
+;; Real-time collaboration package (local checkout for now; :pin is
+;; meaningless for a local repo, so nix-doom-emacs-unstraightened users need
+;; this path to exist).
+(package! noteworthy-collab
+  :recipe (:local-repo "~/Typst/noteworthy-collab.el"))
 
 (package! treemacs-nerd-icons)
 

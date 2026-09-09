@@ -39,69 +39,102 @@
   (add-to-list 'tramp-remote-path "/home/r0k0r/.nix-profile/bin")
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
 
-;; Register Tinymist as an lsp-mode client for Typst
-(after! lsp-mode
-  (lsp-register-client
-   (make-lsp-client
-    :new-connection (lsp-stdio-connection
-                     (lambda () (list "tinymist" "lsp")))
-    :major-modes '(typst-ts-mode)
-    :server-id 'tinymist
-    :priority 1
-    ;; tinymist pushes notifications lsp-mode does not know; each one raises a
-    ;; warning, and the *Warnings* popup steals whichever window it lands in --
-    ;; including the preview pane, which stops the xwidget dead (an
-    ;; undisplayed xwidget does not run, so it never opens its websocket).
-    :notification-handlers (lsp-ht ("tinymist/documentOutline" #'ignore)
-                                   ("tinymist/documentMetrics" #'ignore)
-                                   ("tinymist/preview/scrollSource" #'ignore))
-    :initialization-options
-    (lambda ()
-      (let* ((root (or (bound-and-true-p noteworthy-project-root)
-                       (when-let* ((proj (project-current)))
-                         (project-root proj))
-                       default-directory))
-             (main (or (bound-and-true-p noteworthy-master-file)
-                       (let ((f (expand-file-name "main.typ" root)))
-                         (when (file-exists-p f) f))))
-             ;; Chapter/page folder mapping, same flags `noteworthy.py
-             ;; --print-inputs' emits and `noteworthy.el' passes to
-             ;; typst-preview.  The server needs them too: tinymist's
-             ;; LSP-hosted preview ignores --input given to
-             ;; tinymist.doStartPreview, and without them the template falls
-             ;; back to 0-based page names and fails to find content/<n>/0.typ.
-             (inputs (when (fboundp 'noteworthy-collab-typst-inputs)
-                       (ignore-errors (noteworthy-collab-typst-inputs root)))))
-        ;; The server runs ON the remote host, so paths must be as that host
-        ;; sees them -- handing it "/sshx:host:/p" makes every entry look like
-        ;; it escapes the root.
-        (let ((remote-root (or (file-remote-p root 'localname) root))
-              (remote-main (and main (or (file-remote-p main 'localname) main))))
-          (append (list :rootPath remote-root)
-                  (when remote-main (list :exportOpts (list :input remote-main)))
-                  (when inputs (list :typstExtraArgs (vconcat inputs))))))))))
+;; Getting the chapter/page inputs into tinymist took four separate fixes, so
+;; they are all recorded here:
+;;
+;;  1. lsp-mode ships clients/lsp-typst.el, which registers :server-id
+;;     'tinymist with NO :initialization-options.  Last registration wins, and
+;;     registering a non-remote client regenerates the -tramp clone from it --
+;;     so if that file loads after us, our options are replaced by nil.  Load
+;;     it FIRST, then register over it.
+;;  2. A TRAMP buffer uses the auto-generated `tinymist-tramp' clone, and
+;;     `lsp-auto-register-remote-clients' does not re-run when `tinymist' is
+;;     re-registered.  Register the remote client by hand too.
+;;  3. tinymist's typstExtraArgs is a string[], one flag per element using `=':
+;;     ["--input=k=v", ...].  A single space-joined string is ignored.
+;;  4. `noteworthy-collab-typst-inputs' reads the project with ordinary file
+;;     operations -- over TRAMP that is a TRAMP call, and
+;;     `lsp--start-workspace' is already inside one.  The reentrant call errors
+;;     and is swallowed, leaving inputs: {} at initialize.  Compute in the mode
+;;     hook instead and cache it.
 
-;; The chapter/page inputs have to go through lsp-mode's own setting, not just
-;; `:initialization-options'.  lsp-mode ships a tinymist client
-;; (clients/lsp-typst.el) that registers `lsp-typst-extra-args' ->
-;; tinymist.typstExtraArgs, defaulting to "".  That goes out as a
-;; workspace/didChangeConfiguration *after* initialize and overwrites whatever
-;; initializationOptions carried, so tinymist ended up with `inputs: {}',
-;; parser.typ failed to compile, and the preview sat on "document is not
-;; ready" -- looking for all the world like a stale preview.
+(defvar +noteworthy-typst-inputs nil
+  "Cached --input=k=v flags, keyed by project root.")
+
+(defun +noteworthy-typst-root ()
+  "Project root for this buffer, however the session was started.
+`lsp-deferred' can fire before `noteworthy-collab--project-root' is set."
+  (or (bound-and-true-p noteworthy-collab--project-root)
+      (bound-and-true-p noteworthy-project-root)
+      (when default-directory
+        (when-let* ((d (locate-dominating-file default-directory "noteworthy.py")))
+          (expand-file-name d)))
+      default-directory))
+
+(defun +noteworthy-typst-inputs-for (root)
+  "Cached --input=k=v flags for ROOT."
+  (or (cdr (assoc root +noteworthy-typst-inputs))
+      (let ((pairs (and (fboundp 'noteworthy-collab-typst-inputs)
+                        (ignore-errors (noteworthy-collab-typst-inputs root))))
+            (args nil))
+        (while pairs
+          (if (and (equal (car pairs) "--input") (cadr pairs))
+              (progn (push (concat "--input=" (cadr pairs)) args)
+                     (setq pairs (cddr pairs)))
+            (push (car pairs) args)
+            (setq pairs (cdr pairs))))
+        (setq args (nreverse args))
+        (when args (push (cons root args) +noteworthy-typst-inputs))
+        args)))
+
+(defun +noteworthy-tinymist-init-options ()
+  "rootPath and the Typst inputs, as tinymist reads them at initialize."
+  (let* ((root (+noteworthy-typst-root))
+         (remote-root (or (file-remote-p root 'localname) root))
+         (args (+noteworthy-typst-inputs-for root)))
+    (append (list :rootPath (directory-file-name remote-root))
+            ;; exportOpts kept from the earlier registration this replaced.
+            (when-let* ((main (or (bound-and-true-p noteworthy-collab-master-file)
+                                  (bound-and-true-p noteworthy-master-file))))
+              (list :exportOpts (list :input (or (file-remote-p main 'localname) main))))
+            (when args (list :typstExtraArgs (vconcat args))))))
+
 (defun +noteworthy-set-typst-extra-args ()
-  "Point `lsp-typst-extra-args' at this project's chapter/page inputs."
-  (when (require 'lsp-typst nil t)
-    (when-let* ((root (or (bound-and-true-p noteworthy-collab--project-root)
-                          (bound-and-true-p noteworthy-project-root)
-                          (when-let* ((proj (project-current)))
-                            (project-root proj))))
-                (inputs (and (fboundp 'noteworthy-collab-typst-inputs)
-                             (ignore-errors (noteworthy-collab-typst-inputs root)))))
-      (setq lsp-typst-extra-args (mapconcat #'identity inputs " ")))))
+  "Warm the input cache and point `lsp-typst-extra-args' at it.
+Runs from the mode hook -- outside the TRAMP call `lsp--start-workspace'
+makes, which is the only place the project can be read safely."
+  (when (boundp 'lsp-typst-extra-args)
+    (let* ((root (+noteworthy-typst-root))
+           (args (and root (+noteworthy-typst-inputs-for root))))
+      (when args (setq lsp-typst-extra-args (vconcat args))))))
 
 ;; Depth -50: this has to have run before `lsp-deferred' starts the server.
 (add-hook 'typst-ts-mode-hook #'+noteworthy-set-typst-extra-args -50)
+
+(after! lsp-mode
+  (require 'lsp-typst nil t)            ; see (1) above -- must load first
+  (dolist (remote '(nil t))
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection (if remote
+                          (lsp-tramp-connection (lambda () (list "tinymist" "lsp")))
+                        (lsp-stdio-connection (lambda () (list "tinymist" "lsp"))))
+      :major-modes '(typst-ts-mode)
+      :server-id (if remote 'tinymist-tramp 'tinymist)
+      :remote? remote
+      :priority 2
+      :notification-handlers (lsp-ht ("tinymist/documentOutline" #'ignore)
+                                     ("tinymist/documentMetrics" #'ignore)
+                                     ("tinymist/preview/scrollSource" #'ignore))
+      :initialization-options #'+noteworthy-tinymist-init-options))))
+
+;;;###autoload
+(defun noteworthy-collab-calculus2 ()
+  "Open the Calculus II collab session on yulee."
+  (interactive)
+  (noteworthy-remote-init "ws://yulee:8011/ws/emacs"
+                          "/sshx:yulee:/home/r0k0r/calculus_2"
+                          (expand-file-name "~/KSA/Stewart_Calculus.pdf")))
 
 ;; Start LSP automatically in Typst files
 (add-hook 'typst-ts-mode-hook #'lsp-deferred)

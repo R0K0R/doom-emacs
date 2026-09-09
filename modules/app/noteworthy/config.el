@@ -371,8 +371,13 @@ makes, which is the only place the project can be read safely."
   ;; Preview: a tinymist session started by hand on the project's machine,
   ;; with both planes forwarded:
   ;;   ssh -L 23625:localhost:23625 -L 23626:localhost:23626 yourserver
-  ;; (setq noteworthy-collab-preview-url "http://localhost:23625")
-  ;; (setq noteworthy-collab-preview-control-url "ws://localhost:23626")
+  ;; The preview MUST be reached over localhost: tinymist binds 127.0.0.1 and
+  ;; refuses any websocket whose Origin is not localhost, and the xwidget sends
+  ;; the URL it loaded from as its Origin.  Left unset, the URL is inferred
+  ;; from the collab server's host and the pane shows "Connection refused".
+  ;; The ports match noteworthy-collab-preview-{data,control}-port.
+  (setq noteworthy-collab-preview-url "http://localhost:23627"
+        noteworthy-collab-preview-control-url "ws://localhost:23628")
   )
 
 ;; Keybindings for collaboration

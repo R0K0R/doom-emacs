@@ -56,10 +56,8 @@
 ;;     operations -- over TRAMP that is a TRAMP call, and
 ;;     `lsp--start-workspace' is already inside one.  The reentrant call errors
 ;;     and is swallowed, leaving inputs: {} at initialize.  Compute in the mode
-;;     hook instead and cache it.
-
-(defvar +noteworthy-typst-inputs nil
-  "Cached --input=k=v flags, keyed by project root.")
+;;     hook instead and cache it -- in the package, so that the commands which
+;;     change the structure can invalidate the same cache initialize reads.
 
 (defun +noteworthy-typst-root ()
   "Project root for this buffer, however the session was started.
@@ -71,21 +69,25 @@
           (expand-file-name d)))
       default-directory))
 
-(defun +noteworthy-typst-inputs-for (root)
-  "Cached --input=k=v flags for ROOT."
-  (or (cdr (assoc root +noteworthy-typst-inputs))
-      (let ((pairs (and (fboundp 'noteworthy-collab-typst-inputs)
-                        (ignore-errors (noteworthy-collab-typst-inputs root))))
-            (args nil))
-        (while pairs
-          (if (and (equal (car pairs) "--input") (cadr pairs))
-              (progn (push (concat "--input=" (cadr pairs)) args)
-                     (setq pairs (cddr pairs)))
-            (push (car pairs) args)
-            (setq pairs (cdr pairs))))
-        (setq args (nreverse args))
-        (when args (push (cons root args) +noteworthy-typst-inputs))
-        args)))
+(defun +noteworthy-typst-inputs-for (root &optional force)
+  "--input=k=v flags for ROOT, from the package's cache.
+The cache lives in noteworthy-collab so that the things which change the
+structure -- `noteworthy-collab-preview-start',
+`noteworthy-collab-reload-structure' -- can invalidate it.  A second copy
+here would go stale behind them and get re-sent at the next initialize,
+which is the whole failure the restart exists to fix.  With FORCE, rescan."
+  (let ((pairs (cond ((fboundp 'noteworthy-collab-typst-inputs-cached)
+                      (noteworthy-collab-typst-inputs-cached root force))
+                     ((fboundp 'noteworthy-collab-typst-inputs)
+                      (ignore-errors (noteworthy-collab-typst-inputs root)))))
+        (args nil))
+    (while pairs
+      (if (and (equal (car pairs) "--input") (cadr pairs))
+          (progn (push (concat "--input=" (cadr pairs)) args)
+                 (setq pairs (cddr pairs)))
+        (push (car pairs) args)
+        (setq pairs (cdr pairs))))
+    (nreverse args)))
 
 (defun +noteworthy-tinymist-init-options ()
   "rootPath and the Typst inputs, as tinymist reads them at initialize."
@@ -105,7 +107,7 @@ Runs from the mode hook -- outside the TRAMP call `lsp--start-workspace'
 makes, which is the only place the project can be read safely."
   (when (boundp 'lsp-typst-extra-args)
     (let* ((root (+noteworthy-typst-root))
-           (args (and root (+noteworthy-typst-inputs-for root))))
+           (args (and root (+noteworthy-typst-inputs-for root t))))
       (when args (setq lsp-typst-extra-args (vconcat args))))))
 
 ;; Depth -50: this has to have run before `lsp-deferred' starts the server.

@@ -27,6 +27,17 @@
 (after! lsp-mode
   (add-to-list 'lsp-language-id-configuration '(typst-ts-mode . "typst")))
 
+;; lsp-mode runs tinymist ON the project host, so the binary has to be on the
+;; PATH that TRAMP builds -- which is not the login shell's PATH.  On a NixOS
+;; host with fish as the login shell, a non-interactive shell does not source
+;; the nix profile, so `tramp-own-remote-path' comes back without it and
+;; lsp-mode reports "servers support current file but do not have automatic
+;; installation: tinymist-tramp" -- a missing workspace dressed up as a
+;; missing binary.  Name the profile directory explicitly.
+(after! tramp
+  (add-to-list 'tramp-remote-path "/home/r0k0r/.nix-profile/bin")
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+
 ;; Register Tinymist as an lsp-mode client for Typst
 (after! lsp-mode
   (lsp-register-client

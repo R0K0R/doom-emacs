@@ -81,6 +81,28 @@
                   (when remote-main (list :exportOpts (list :input remote-main)))
                   (when inputs (list :typstExtraArgs (vconcat inputs))))))))))
 
+;; The chapter/page inputs have to go through lsp-mode's own setting, not just
+;; `:initialization-options'.  lsp-mode ships a tinymist client
+;; (clients/lsp-typst.el) that registers `lsp-typst-extra-args' ->
+;; tinymist.typstExtraArgs, defaulting to "".  That goes out as a
+;; workspace/didChangeConfiguration *after* initialize and overwrites whatever
+;; initializationOptions carried, so tinymist ended up with `inputs: {}',
+;; parser.typ failed to compile, and the preview sat on "document is not
+;; ready" -- looking for all the world like a stale preview.
+(defun +noteworthy-set-typst-extra-args ()
+  "Point `lsp-typst-extra-args' at this project's chapter/page inputs."
+  (when (require 'lsp-typst nil t)
+    (when-let* ((root (or (bound-and-true-p noteworthy-collab--project-root)
+                          (bound-and-true-p noteworthy-project-root)
+                          (when-let* ((proj (project-current)))
+                            (project-root proj))))
+                (inputs (and (fboundp 'noteworthy-collab-typst-inputs)
+                             (ignore-errors (noteworthy-collab-typst-inputs root)))))
+      (setq lsp-typst-extra-args (mapconcat #'identity inputs " ")))))
+
+;; Depth -50: this has to have run before `lsp-deferred' starts the server.
+(add-hook 'typst-ts-mode-hook #'+noteworthy-set-typst-extra-args -50)
+
 ;; Start LSP automatically in Typst files
 (add-hook 'typst-ts-mode-hook #'lsp-deferred)
 

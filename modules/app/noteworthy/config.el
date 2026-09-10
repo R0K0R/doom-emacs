@@ -145,6 +145,32 @@ makes, which is the only place the project can be read safely."
 (after! lsp-mode
   (setq lsp-diagnostics-provider :flycheck))
 
+(defun +noteworthy-lsp-force-binary-coding ()
+  "Put a remote language server's pipe back to binary.
+
+`lsp-stdio-connection' asks for `:coding no-conversion' on purpose:
+`lsp--parser-read' measures Content-Length in bytes, slices the body with
+those byte counts, and decodes it itself with `decode-coding-region'.
+
+Over TRAMP that request is ignored.  `tramp-sh' picks utf-8 whenever the
+remote locale is UTF-8 -- its own comment reads "CCC this can't be the
+right way to do it" -- so the filter is handed characters instead of
+bytes.  Byte counts and character indices agree while the payload is
+ASCII and part company the moment it is not, and tinymist's completions
+are mostly math glyphs: a 128410-byte body arrived as ~127374 characters,
+`substring' cut it short, and the parse died with json-end-of-file.
+
+Forcing binary restores what lsp-mode already expects -- it is not a
+second decode, it is declining TRAMP's."
+  (when-let* ((ws (bound-and-true-p lsp--cur-workspace))
+              (proc (lsp--workspace-cmd-proc ws)))
+    (when (and (processp proc)
+               (process-live-p proc)
+               (file-remote-p default-directory))
+      (set-process-coding-system proc 'binary 'binary))))
+
+(add-hook 'lsp-after-initialize-hook #'+noteworthy-lsp-force-binary-coding)
+
 ;; lsp-ui settings
 (after! lsp-ui
   (setq lsp-ui-sideline-enable t

@@ -164,9 +164,12 @@ Forcing binary restores what lsp-mode already expects -- it is not a
 second decode, it is declining TRAMP's."
   (when-let* ((ws (bound-and-true-p lsp--cur-workspace))
               (proc (lsp--workspace-cmd-proc ws)))
-    (when (and (processp proc)
-               (process-live-p proc)
-               (file-remote-p default-directory))
+    ;; No remoteness guard.  The hook runs in whatever buffer happens to be
+    ;; current, so `default-directory' is not reliably the project's -- and
+    ;; the check is pointless anyway: `lsp-stdio-connection' asks for
+    ;; no-conversion on every connection, so a local process is already
+    ;; binary and setting it again changes nothing.
+    (when (and (processp proc) (process-live-p proc))
       (set-process-coding-system proc 'binary 'binary))))
 
 (add-hook 'lsp-after-initialize-hook #'+noteworthy-lsp-force-binary-coding)

@@ -174,6 +174,38 @@ second decode, it is declining TRAMP's."
 
 (add-hook 'lsp-after-initialize-hook #'+noteworthy-lsp-force-binary-coding)
 
+(defun +noteworthy-tinymist-pin-main ()
+  "Compile the whole book, not whichever file happens to be focused.
+
+tinymist treats each opened file as its own document by default.  A content
+page compiled that way never sees `#show ref: xref-rule' -- that lives in
+parser.typ -- so every cross-reference in it is a hard error, and a document
+that does not compile offers no labels to complete or jump to.  Pinned to
+the master file the book is one document: references resolve, and `@'
+completes labels from every page rather than from none.
+
+Sent after initialize rather than as an initialization option: tinymist
+takes the pin as a workspace command, and the path has to be the one the
+server sees, which over TRAMP is the remote name without the method."
+  (when-let* ((ws (bound-and-true-p lsp--cur-workspace))
+              (id (lsp--client-server-id (lsp--workspace-client ws)))
+              ((memq id '(tinymist tinymist-tramp)))
+              (main (or (bound-and-true-p noteworthy-collab-master-file)
+                        (bound-and-true-p noteworthy-master-file)))
+              (path (or (file-remote-p main 'localname) main)))
+    (with-lsp-workspace ws
+      ;; Asynchronous on purpose: this runs inside initialize, and a
+      ;; synchronous round trip there deadlocks against the server still
+      ;; finishing its own startup.
+      (lsp-request-async "workspace/executeCommand"
+                         (list :command "tinymist.pinMain"
+                               :arguments (vector path))
+                         #'ignore
+                         :error-handler #'ignore
+                         :mode 'detached))))
+
+(add-hook 'lsp-after-initialize-hook #'+noteworthy-tinymist-pin-main)
+
 ;; lsp-ui settings
 (after! lsp-ui
   (setq lsp-ui-sideline-enable t

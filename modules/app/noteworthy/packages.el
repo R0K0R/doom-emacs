@@ -24,7 +24,7 @@
 ;; Same reason typst-preview and noteworthy above carry pins.
 (package! noteworthy-collab
   :recipe (:type git :host github :repo "R0K0R/noteworthy-collab.el")
-  :pin "a348c5fd045055d2679c0643dbcc6ff84a6d7332")
+  :pin "a2991e1c10337d330fc542bd4fdd29e2098c10ae")
 
 (package! treemacs-nerd-icons)
 

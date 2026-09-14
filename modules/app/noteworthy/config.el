@@ -70,24 +70,19 @@
       default-directory))
 
 (defun +noteworthy-typst-inputs-for (root &optional force)
-  "--input=k=v flags for ROOT, from the package's cache.
-The cache lives in noteworthy-collab so that the things which change the
-structure -- `noteworthy-collab-preview-start',
-`noteworthy-collab-reload-structure' -- can invalidate it.  A second copy
-here would go stale behind them and get re-sent at the next initialize,
-which is the whole failure the restart exists to fix.  With FORCE, rescan."
-  (let ((pairs (cond ((fboundp 'noteworthy-collab-typst-inputs-cached)
-                      (noteworthy-collab-typst-inputs-cached root force))
-                     ((fboundp 'noteworthy-collab-typst-inputs)
-                      (ignore-errors (noteworthy-collab-typst-inputs root)))))
-        (args nil))
-    (while pairs
-      (if (and (equal (car pairs) "--input") (cadr pairs))
-          (progn (push (concat "--input=" (cadr pairs)) args)
-                 (setq pairs (cddr pairs)))
-        (push (car pairs) args)
-        (setq pairs (cdr pairs))))
-    (nreverse args)))
+  "The project\='s typst input flags for ROOT, as lsp-mode wants them.
+
+Asked for rather than assembled: `parser.typ' resolves its includes from
+`chapter-folders' and `page-folders', and every task that compiles it needs
+them -- the server here, the preview elsewhere.  A second copy of the
+reshaping is how one of those call sites ends up without them, which is what
+left the preview compiling content/0/0.typ and failing.  The cache lives in
+noteworthy-collab so the commands that change the structure invalidate the
+copy this reads.  With FORCE, rescan."
+  (if (fboundp 'noteworthy-collab-typst-input-flags)
+      (ignore-errors (noteworthy-collab-typst-input-flags root force))
+    ;; noteworthy-collab not loaded yet: no project inputs to give.
+    nil))
 
 (defun +noteworthy-tinymist-init-options ()
   "rootPath and the Typst inputs, as tinymist reads them at initialize."

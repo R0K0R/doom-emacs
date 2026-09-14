@@ -145,6 +145,22 @@ makes, which is the only place the project can be read safely."
 (after! lsp-mode
   (setq lsp-diagnostics-provider :flycheck))
 
+(defun +noteworthy-show-typst-diagnostics ()
+  "Let tinymist's errors reach the buffer.
+
+Without this a Typst buffer reports "no syntax checker for typst-ts-mode
+can run here" and the errors stay in tinymist's own log -- so a document
+that will not compile looks exactly like one that does, except the preview
+is blank.  There is no CLI checker for Typst worth running; the language
+server already knows, and this is what points Flycheck at it."
+  (when (and (derived-mode-p 'typst-ts-mode)
+             (bound-and-true-p lsp-mode)
+             (fboundp 'flycheck-mode))
+    (flycheck-mode 1)
+    (setq-local flycheck-checker 'lsp)))
+
+(add-hook 'lsp-configure-hook #'+noteworthy-show-typst-diagnostics)
+
 (defun +noteworthy-lsp-force-binary-coding ()
   "Put a remote language server's pipe back to binary.
 

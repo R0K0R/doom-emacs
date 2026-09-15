@@ -143,8 +143,8 @@ makes, which is the only place the project can be read safely."
 (defun +noteworthy-show-typst-diagnostics ()
   "Let tinymist's errors reach the buffer.
 
-Without this a Typst buffer reports "no syntax checker for typst-ts-mode
-can run here" and the errors stay in tinymist's own log -- so a document
+Without this a Typst buffer reports \"no syntax checker for typst-ts-mode
+can run here\" and the errors stay in tinymist\='s own log -- so a document
 that will not compile looks exactly like one that does, except the preview
 is blank.  There is no CLI checker for Typst worth running; the language
 server already knows, and this is what points Flycheck at it."
@@ -156,6 +156,23 @@ server already knows, and this is what points Flycheck at it."
 
 (add-hook 'lsp-configure-hook #'+noteworthy-show-typst-diagnostics)
 
+(defun +noteworthy-drop-unsupported-inlay-hints ()
+  "Stop asking tinymist for inlay hints it does not implement.
+
+`lsp-inlay-hint-enable\=' is on globally for the languages that support it.
+tinymist does not, so every idle tick and every scroll raised \"The
+connected server(s) does not support method textDocument/inlayHint\" --
+an error per keystroke pause, in the echo area, for a feature that was
+never going to appear.  Turned off for Typst buffers only, so the setting
+keeps working everywhere else."
+  (when (and (derived-mode-p 'typst-ts-mode)
+             (not (lsp-feature? "textDocument/inlayHint")))
+    (setq-local lsp-inlay-hint-enable nil)
+    (when (bound-and-true-p lsp-inlay-hints-mode)
+      (lsp-inlay-hints-mode -1))))
+
+(add-hook 'lsp-configure-hook #'+noteworthy-drop-unsupported-inlay-hints)
+
 (defun +noteworthy-lsp-force-binary-coding ()
   "Put a remote language server's pipe back to binary.
 
@@ -164,8 +181,8 @@ server already knows, and this is what points Flycheck at it."
 those byte counts, and decodes it itself with `decode-coding-region'.
 
 Over TRAMP that request is ignored.  `tramp-sh' picks utf-8 whenever the
-remote locale is UTF-8 -- its own comment reads "CCC this can't be the
-right way to do it" -- so the filter is handed characters instead of
+remote locale is UTF-8 -- its own comment reads \"CCC this can\='t be the
+right way to do it\" -- so the filter is handed characters instead of
 bytes.  Byte counts and character indices agree while the payload is
 ASCII and part company the moment it is not, and tinymist's completions
 are mostly math glyphs: a 128410-byte body arrived as ~127374 characters,

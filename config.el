@@ -726,3 +726,14 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
   :custom
   (arduino-cli-warnings 'all)
   (arduino-cli-verify t))
+
+;; `project--write-project-list' does not create the directory it writes into,
+;; so a fresh state directory turns every project visit into
+;; "Opening output file: No such file or directory".  Make it exist.
+(defun +ensure-project-list-directory (&rest _)
+  (when-let* ((file (bound-and-true-p project-list-file))
+              (dir (file-name-directory file)))
+    (unless (file-directory-p dir)
+      (ignore-errors (make-directory dir t)))))
+
+(advice-add 'project--write-project-list :before #'+ensure-project-list-directory)

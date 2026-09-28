@@ -544,10 +544,41 @@ ORIG and ARGS are `pdf-view-mode' and its arguments."
    ;; the page showed for a moment and was gone.
    ((derived-mode-p 'doc-view-mode) nil)
    (t
-    (doc-view-mode)
+    ;; Render at the resolution kitty-graphics will want from the start.
+    ;; Otherwise the first page comes out at doc-view's 100 dpi, is shown --
+    ;; the cover -- and kitty-graphics, finding it too coarse for the
+    ;; window, raises the resolution and reconverts the whole document,
+    ;; which deletes every page image: the cover vanished, and a 1300-page
+    ;; book started over.  Bound around the mode so the conversion it
+    ;; starts uses it, and kept buffer-local for later reconversions.
+    (let ((dpi (my/kitty-pdf--dpi)))
+      (let ((doc-view-resolution dpi))
+        (doc-view-mode))
+      (setq-local doc-view-resolution dpi))
     (my/kitty-pdf--drop-text)
     (add-hook 'after-revert-hook #'my/kitty-pdf--drop-text nil t)
     (add-hook 'write-contents-functions #'my/kitty-pdf--refuse-save nil t))))
+
+(defun my/kitty-pdf--dpi ()
+  "The DPI at which a page passes kitty-graphics' sharpness check first time.
+kitty-graphics wants `kitty-graphics-doc-view-resolution-scale' times the
+pixels the page is drawn into, and reconverts above 10% short.  The page
+size is not known before conversion, so this assumes a Letter page and
+takes the larger of the width and height demands -- enough for Letter,
+A4 and most books whichever way they fit -- plus that 10%.  A smaller
+page than that still gets one reconversion from kitty-graphics' own check."
+  (when (fboundp 'kitty-graphics--query-cell-size)
+    (ignore-errors (kitty-graphics--query-cell-size)))
+  (let* ((win (selected-window))
+         (cw (or (bound-and-true-p kitty-graphics--cell-pixel-width)
+                 (terminal-parameter nil 'kitty-graphics-cell-w) 8))
+         (ch (or (bound-and-true-p kitty-graphics--cell-pixel-height)
+                 (terminal-parameter nil 'kitty-graphics-cell-h) 16))
+         (w-px (* cw (max 1 (1- (window-body-width win)))))
+         (h-px (* ch (max 1 (1- (window-body-height win)))))
+         (scale (or (bound-and-true-p kitty-graphics-doc-view-resolution-scale) 1.0)))
+    (max doc-view-resolution
+         (ceiling (* 1.1 scale (max (/ w-px 8.5) (/ h-px 11.0)))))))
 
 (defun my/kitty-pdf--drop-text ()
   "Replace this doc-view buffer's text -- the raw PDF -- with one character.

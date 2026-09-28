@@ -307,10 +307,15 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 (defun force-corfu-pipes-h ()
   (corfu-mode 1)
   (setq-local completion-at-point-functions
-              (append (list #'my-lsp-completion-capf #'yasnippet-capf)
-                      (delq #'yasnippet-capf
-                            (delq #'my-lsp-completion-capf
-                                  (delq #'lsp-completion-at-point completion-at-point-functions))))))
+              (cons #'my-lsp-completion-capf
+                    (delq #'yasnippet-capf
+                          (delq #'my-lsp-completion-capf
+                                (delq #'lsp-completion-at-point completion-at-point-functions))))))
+
+;; No snippets in the completion popup.  Snippets still expand by key (TAB)
+;; and the auto-expanding ones still fire as you type; they only stop
+;; showing up as Corfu candidates next to real completions.
+(remove-hook 'yas-minor-mode-hook #'+corfu-add-yasnippet-capf-h)
 
 (add-hook 'python-ts-mode-hook #'force-corfu-pipes-h 'append)
 (add-hook 'python-mode-hook #'force-corfu-pipes-h 'append)

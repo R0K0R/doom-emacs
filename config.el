@@ -385,6 +385,9 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
        (fboundp 'kitty-graphics--browser-available-p)
        (kitty-graphics--browser-available-p)))
 
+(defvar my/kitty-preview--retry-timer nil
+  "Pending check that reloads the kitty browser once its server answers.")
+
 (defun my/kitty-preview-show (url)
   "Open URL in kitty-graphics' inline browser, in the preview side window.
 Reuses the window Noteworthy marks as its preview, so a Noteworthy layout
@@ -403,9 +406,60 @@ and a plain `typst-preview-mode' session put it in the same place."
                     (round (* 0.45 (frame-width))))))
       (ignore-errors (window-resize win (- target (window-total-width win)) t)))
     (set-window-dedicated-p win nil)
-    (with-selected-window win
-      (kitty-graphics-browse url))
-    (set-window-dedicated-p win t)))
+    (my/kitty-preview--ensure-local url)
+    ;; Whether the page is about to load before its server answers -- only
+    ;; then does it need loading again.
+    (let* ((port (my/kitty-preview--local-port url))
+           (early (and port (not (my/kitty-preview--port-up-p port)))))
+      (with-selected-window win
+        (kitty-graphics-browse url))
+      (set-window-dedicated-p win t)
+      (if early
+          (my/kitty-preview--reload-when-up url)
+        (when (timerp my/kitty-preview--retry-timer)
+          (cancel-timer my/kitty-preview--retry-timer))))))
+
+(defun my/kitty-preview--local-port (url)
+  "The port of URL when it points at this machine, else nil."
+  (when (string-match "\\`https?://\\(localhost\\|127\\.0\\.0\\.1\\|\\[::1\\]\\):\\([0-9]+\\)" url)
+    (string-to-number (match-string 2 url))))
+
+(defun my/kitty-preview--port-up-p (port)
+  "Non-nil when something accepts connections on localhost PORT."
+  (condition-case nil
+      (progn (delete-process (open-network-stream "kitty-preview-probe" nil "127.0.0.1" port)) t)
+    (error nil)))
+
+(defun my/kitty-preview--ensure-local (url)
+  "Bring up whatever serves URL locally before the browser asks for it.
+A collab preview lives on the project host and is reached through an SSH
+tunnel that `noteworthy-collab-preview-start' opens -- but the layout
+shows the pane as soon as it knows the URL, which can be first.  The
+xwidget got away with that by being reloaded later; casty loads once."
+  (when (and (my/kitty-preview--local-port url)
+             (not (my/kitty-preview--port-up-p (my/kitty-preview--local-port url)))
+             (fboundp 'noteworthy-collab-preview-ensure-tunnel))
+    (ignore-errors (noteworthy-collab-preview-ensure-tunnel))))
+
+(defun my/kitty-preview--reload-when-up (url &optional tries)
+  "Reload the kitty browser once URL's local port answers.
+Called only when the page loaded before its server did.  Checks every
+second for up to 30 seconds, then gives up."
+  (when (timerp my/kitty-preview--retry-timer)
+    (cancel-timer my/kitty-preview--retry-timer))
+  (let ((port (my/kitty-preview--local-port url))
+        (tries (or tries 0)))
+    (when (and port (< tries 30))
+      (setq my/kitty-preview--retry-timer
+            (run-at-time
+             1 nil
+             (lambda ()
+               (setq my/kitty-preview--retry-timer nil)
+               (if (my/kitty-preview--port-up-p port)
+                   (when (get-buffer "*kitty-browser*")
+                     (with-current-buffer "*kitty-browser*"
+                       (ignore-errors (kitty-graphics-browser-reload))))
+                 (my/kitty-preview--reload-when-up url (1+ tries)))))))))
 
 (defun my/kitty-preview--xwidget-browse (orig url &rest args)
   "On a terminal frame, show URL in kitty-graphics instead of an xwidget.

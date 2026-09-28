@@ -369,6 +369,64 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 (setq kitty-graphics-enable-video t)
 (kitty-graphics-setup)
 
+;; Tinymist preview inside `emacs -nw'.  A terminal frame cannot show an
+;; xwidget, and the "default" browser means a separate Chrome window, so on a
+;; terminal the preview goes to kitty-graphics' inline browser instead: casty
+;; drives headless Chrome and paints the page into the buffer with the Kitty
+;; graphics protocol.  GUI frames are untouched -- they keep the xwidget.
+;;
+;; casty comes from the Nix emacs feature (features/emacs/casty.nix).  It is
+;; pointed at the Chrome already installed so it never downloads its own.
+(setq kitty-graphics-enable-browser t)
+
+(defun my/kitty-preview-p ()
+  "Non-nil when this frame should show previews in kitty-graphics' browser."
+  (and (not (display-graphic-p))
+       (fboundp 'kitty-graphics--browser-available-p)
+       (kitty-graphics--browser-available-p)))
+
+(defun my/kitty-preview-show (url)
+  "Open URL in kitty-graphics' inline browser, in the preview side window.
+Reuses the window Noteworthy marks as its preview, so a Noteworthy layout
+and a plain `typst-preview-mode' session put it in the same place."
+  (unless kitty-graphics-casty-chrome
+    (setq kitty-graphics-casty-chrome
+          (or (executable-find "google-chrome-stable")
+              "/run/current-system/sw/bin/google-chrome-stable")))
+  (let ((win (or (window-with-parameter 'noteworthy-preview t)
+                 (split-window (frame-root-window) nil 'right))))
+    (set-window-parameter win 'noteworthy-preview t)
+    ;; Size it before casty starts: the frame geometry is read once, from the
+    ;; window, when the browser launches.
+    (let ((target (if (bound-and-true-p noteworthy-preview-width)
+                      noteworthy-preview-width
+                    (round (* 0.45 (frame-width))))))
+      (ignore-errors (window-resize win (- target (window-total-width win)) t)))
+    (set-window-dedicated-p win nil)
+    (with-selected-window win
+      (kitty-graphics-browse url))
+    (set-window-dedicated-p win t)))
+
+(defun my/kitty-preview--xwidget-browse (orig url &rest args)
+  "On a terminal frame, show URL in kitty-graphics instead of an xwidget.
+ORIG and ARGS are `xwidget-webkit-browse-url' and its arguments."
+  (if (my/kitty-preview-p)
+      (my/kitty-preview-show url)
+    (apply orig url args)))
+
+(defun my/kitty-preview--typst-connect (orig browser hostname)
+  "On a terminal frame, open the typst preview at HOSTNAME in kitty-graphics.
+ORIG is `typst-preview--connect-browser', given BROWSER and HOSTNAME."
+  (if (my/kitty-preview-p)
+      (my/kitty-preview-show (concat "http://" hostname))
+    (funcall orig browser hostname)))
+
+;; Outermost, so it decides before Noteworthy's side-window advice creates a
+;; window the xwidget would otherwise have gone into.
+(advice-add 'xwidget-webkit-browse-url :around #'my/kitty-preview--xwidget-browse
+            '((depth . -100)))
+(advice-add 'typst-preview--connect-browser :around #'my/kitty-preview--typst-connect)
+
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES
 ;; ==========================================

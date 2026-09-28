@@ -561,6 +561,13 @@ ORIG is `kitty-graphics--mpv-filter'; PROC is the process."
 ;; converted to PNG with Ghostscript or mutool).  So on a terminal frame with
 ;; kitty-graphics active, a PDF opens in doc-view instead.  GUI frames keep
 ;; pdf-tools.
+;; doc-view's own variable, bound around `doc-view-mode' below.  Declared so
+;; that binding is dynamic -- this file is lexically bound, and doc-view is
+;; not loaded yet the first time a PDF opens, so without it the `let' made a
+;; private lexical variable doc-view never saw, and reading it signalled
+;; void-variable ("File mode specification error").
+(defvar doc-view-resolution)
+
 (defun my/kitty-pdf--use-doc-view (orig &rest args)
   "Open the PDF in `doc-view-mode' on a kitty-graphics terminal frame.
 ORIG and ARGS are `pdf-view-mode' and its arguments."
@@ -581,6 +588,7 @@ ORIG and ARGS are `pdf-view-mode' and its arguments."
     ;; which deletes every page image: the cover vanished, and a 1300-page
     ;; book started over.  Bound around the mode so the conversion it
     ;; starts uses it, and kept buffer-local for later reconversions.
+    (require 'doc-view)
     (let ((dpi (my/kitty-pdf--dpi)))
       (let ((doc-view-resolution dpi))
         (doc-view-mode))

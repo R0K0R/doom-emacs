@@ -493,12 +493,85 @@ ORIG is `typst-preview--connect-browser', given BROWSER and HOSTNAME."
 ORIG and ARGS are `pdf-view-mode' and its arguments."
   (if (and (not (display-graphic-p))
            (bound-and-true-p kitty-graphics-mode))
-      (doc-view-mode)
+      (progn
+        (doc-view-mode)
+        (my/kitty-pdf--drop-text)
+        (add-hook 'after-revert-hook #'my/kitty-pdf--drop-text nil t)
+        (add-hook 'write-contents-functions #'my/kitty-pdf--refuse-save nil t))
     (apply orig args)))
+
+(defun my/kitty-pdf--drop-text ()
+  "Replace this doc-view buffer's text -- the raw PDF -- with one character.
+doc-view renders pages from the file (for a remote PDF, from the copy it
+has just made in its cache), and keys its cache on the file's contents,
+so the text is dead weight once the mode is up.  Left in, every walk the
+display engine makes over the page overlay crosses the whole file: 90 MB
+for a textbook, which is what hung Emacs.  A revert reinserts it, hence
+`after-revert-hook'."
+  (when (and (derived-mode-p 'doc-view-mode)
+             (bound-and-true-p doc-view--buffer-file-name)
+             (file-readable-p doc-view--buffer-file-name)
+             (> (buffer-size) 1))
+    (let ((inhibit-read-only t)
+          (buffer-undo-list t))
+      (erase-buffer)
+      (insert " ")
+      (goto-char (point-min))
+      (set-buffer-modified-p nil))))
+
+(defun my/kitty-pdf--refuse-save ()
+  "Never write this buffer: its text is a placeholder, not the PDF.
+Returns non-nil so saving stops here without touching the file."
+  (message "This PDF is shown from its file; the buffer is not saved")
+  t)
 
 ;; Outermost, so Doom's epdfinfo advice on the same function never runs for a
 ;; terminal frame (it would try to start the pdf-tools server for nothing).
 (advice-add 'pdf-view-mode :around #'my/kitty-pdf--use-doc-view '((depth . -100)))
+
+;; doc-view converts with mutool when it is on PATH (the Nix emacs feature
+;; puts it there).  The Ghostscript converter first checks for a password by
+;; running Ghostscript over the WHOLE document, synchronously -- 46 s of
+;; frozen Emacs on a 1300-page textbook, which is where C-g led to the
+;; emergency escape.  mutool's check draws page 1 only.  PNG rather than SVG
+;; pages: kitty-graphics transmits PNG as is, while SVG goes through
+;; ImageMagick first.
+(setq doc-view-mupdf-use-svg nil)
+
+;; Big PDFs hung Emacs.  kitty-graphics re-places the doc-view page on every
+;; refresh, and to find where it goes it asks the display engine --
+;; `window-end' with UPDATE, `pos-visible-in-window-p', `posn-at-point' --
+;; about the page overlay, which covers the entire buffer: in doc-view that
+;; is the whole PDF file as text, 90 MB for a textbook.  A 90 MB Stewart
+;; stalled there (in `Fprevious_single_char_property_change', under a
+;; refresh timer) until the emergency escape.
+;;
+;; None of that is needed for a doc-view page.  The overlay starts at the
+;; buffer's first character and doc-view keeps it at the window's start, so
+;; it sits at the top-left of the window's text area, always.  Answer that
+;; directly for doc-view overlays and leave every other image to the original.
+(defun my/kitty-doc-view--screen-pos (orig ov &optional win)
+  "Screen position of OV, computed directly when it is a doc-view page.
+ORIG is `kitty-graphics--overlay-screen-pos'; WIN as there."
+  (if (not (overlay-get ov 'kitty-graphics-doc-view))
+      (funcall orig ov win)
+    (let* ((buf (overlay-buffer ov))
+           (pos (overlay-start ov))
+           (win (and buf
+                     (or (and (window-live-p win) (eq (window-buffer win) buf) win)
+                         (get-buffer-window buf)))))
+      ;; Same answer as the original: nil when the page is not what the
+      ;; window shows from its top, else (TERM-ROW . TERM-COL), 1-based.
+      (when (and win pos (= (window-start win) pos))
+        (let ((body (window-body-edges win)))
+          (cons (+ (nth 1 body) 1)
+                ;; The page starts in column 0, so horizontal scroll never
+                ;; moves it: the original's visual column is always 0 here.
+                (+ (nth 0 body)
+                   (kitty-graphics--window-line-number-width win)
+                   1)))))))
+
+(advice-add 'kitty-graphics--overlay-screen-pos :around #'my/kitty-doc-view--screen-pos)
 
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES

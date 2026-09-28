@@ -396,15 +396,18 @@ and a plain `typst-preview-mode' session put it in the same place."
     (setq kitty-graphics-casty-chrome
           (or (executable-find "google-chrome-stable")
               "/run/current-system/sw/bin/google-chrome-stable")))
-  (let ((win (or (window-with-parameter 'noteworthy-preview t)
-                 (split-window (frame-root-window) nil 'right))))
+  (let* ((existing (window-with-parameter 'noteworthy-preview t))
+         (win (or existing (split-window (frame-root-window) nil 'right))))
     (set-window-parameter win 'noteworthy-preview t)
-    ;; Size it before casty starts: the frame geometry is read once, from the
-    ;; window, when the browser launches.
-    (let ((target (if (bound-and-true-p noteworthy-preview-width)
-                      noteworthy-preview-width
-                    (round (* 0.45 (frame-width))))))
-      (ignore-errors (window-resize win (- target (window-total-width win)) t)))
+    ;; Same width the xwidget preview gets.  A window the layout already made
+    ;; is sized by it exactly as for the xwidget, so leave it be; a new one is
+    ;; sized by the layouts' own rule -- their width setting, else 35% of the
+    ;; frame.  Before casty starts, which reads the size from the window.
+    (unless existing
+      (let ((target (or (bound-and-true-p noteworthy-collab-preview-width)
+                        (bound-and-true-p noteworthy-preview-width)
+                        (round (* 0.35 (frame-width))))))
+        (ignore-errors (window-resize win (- target (window-total-width win)) t))))
     (set-window-dedicated-p win nil)
     (my/kitty-preview--ensure-local url)
     ;; Whether the page is about to load before its server answers -- only

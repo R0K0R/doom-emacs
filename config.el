@@ -550,9 +550,25 @@ ORIG is `kitty-graphics--mpv-filter'; PROC is the process."
                    (t (length pending))))))
       (process-put proc 'my-kitty-pending (substring pending end))
       (when (> end 0)
-        (funcall orig proc (concat "\e7" (substring pending 0 end) "\e8"))))))
+        ;; Terminal modes are Emacs's.  casty leaves them alone in embed mode
+        ;; except on its error path, which switches mouse reporting off and
+        ;; the cursor on -- for the whole terminal, behind Emacs's back.
+        (funcall orig proc (concat "\e7"
+                                   (replace-regexp-in-string
+                                    "\e\\[\\?[0-9;]*[hl]" "" (substring pending 0 end) t t)
+                                   "\e8"))))))
 
 (advice-add 'kitty-graphics--mpv-filter :around #'my/kitty-browser--keep-cursor)
+
+;; The mouse, in every terminal frame.  Emacs 31 turns `xterm-mouse-mode' on by
+;; itself only after identifying the terminal from its XTVERSION reply, and
+;; waits for that reply only briefly.  Under kitty-graphics' own start-up
+;; probing the reply comes late -- "No catch for tag: result, kitty(0.48.2)"
+;; at start-up -- so the mouse was never enabled: clicks became Kitty's text
+;; selection, and the preview browser got no clicks or wheel at all.  Doom's
+;; :os tty does exactly this before Emacs 31 and leaves it to the detection
+;; from 31 on.
+(add-hook 'tty-setup-hook #'xterm-mouse-mode)
 
 ;; PDFs inside `emacs -nw'.  Doom's :tools pdf opens every PDF in pdf-tools'
 ;; `pdf-view-mode', which draws pages as Emacs images a terminal cannot show,

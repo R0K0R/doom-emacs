@@ -634,6 +634,21 @@ page than that still gets one reconversion from kitty-graphics' own check."
     (max doc-view-resolution
          (ceiling (* 1.1 scale (max (/ w-px 8.5) (/ h-px 11.0)))))))
 
+;; No version control in a PDF viewer.  Visiting a file runs `vc-refresh-state'
+;; -- and Doom's diff gutter -- from `find-file-hook', synchronously, and in a
+;; big repository that is `git status' on the PDF: 12.7 s for the 76 MB
+;; Stewart in ~/KSA (a 9.8 GB repository) before git had refreshed its record
+;; of it.  Emacs froze in there and C-g led to the emergency escape; the diff
+;; gutter had also been marking every line of a raw 90 MB PDF.  A buffer-local
+;; `vc-handled-backends' of nil, set from the mode hook -- which runs before
+;; `find-file-hook' -- means neither ever asks git.
+(defun my/pdf-no-vc ()
+  "Keep version control away from this PDF buffer."
+  (setq-local vc-handled-backends nil))
+
+(add-hook 'doc-view-mode-hook #'my/pdf-no-vc)
+(add-hook 'pdf-view-mode-hook #'my/pdf-no-vc)
+
 (defun my/kitty-pdf--drop-text ()
   "Replace this doc-view buffer's text -- the raw PDF -- with one character.
 doc-view renders pages from the file and keys its cache on the file's

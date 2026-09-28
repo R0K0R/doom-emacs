@@ -15,7 +15,7 @@
   ;; Lisp and info files, which would leave the shipped snippets/ behind.
   :recipe (:type git :host github :repo "R0K0R/noteworthy.el"
            :files (:defaults "snippets"))
-  :pin "94f53ca2087147ec2654e0617e4a8754c914e86e")
+  :pin "6a09746ccee0bbb6d37233ac8eb0d7e7e11b0b7c")
 
 ;; Real-time collaboration package. Fetched from GitHub rather than a
 ;; :local-repo: a local checkout cannot be resolved deterministically, so
@@ -24,7 +24,7 @@
 ;; Same reason typst-preview and noteworthy above carry pins.
 (package! noteworthy-collab
   :recipe (:type git :host github :repo "R0K0R/noteworthy-collab.el")
-  :pin "cf562f489ce37f91c9bea80fdf0c7eedf6416303")
+  :pin "c67e4bc08b5f7d97eb48e846beb619e30c6d43c6")
 
 (package! treemacs-nerd-icons)
 

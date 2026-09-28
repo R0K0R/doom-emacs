@@ -669,6 +669,14 @@ for a textbook, which is what hung Emacs.  A revert reinserts it, hence
           (buffer-undo-list t))
       (erase-buffer)
       (insert " ")
+      ;; Page overlays made before this -- a cached document is drawn during
+      ;; the mode's own setup -- collapsed to nothing with the text, and the
+      ;; placeholder went in front of them.  An empty overlay shows nothing,
+      ;; so the page vanished and doc-view's welcome text stayed.  Stretch
+      ;; them back over the buffer.
+      (dolist (ov (overlays-in (point-min) (point-max)))
+        (when (or (overlay-get ov 'doc-view) (overlay-get ov 'kitty-graphics))
+          (move-overlay ov (point-min) (point-max))))
       (goto-char (point-min))
       (set-buffer-modified-p nil))))
 

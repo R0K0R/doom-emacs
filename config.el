@@ -357,14 +357,14 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 (defun calculus1-noteworthy-init ()
   "Initialize Calculus I KSA Course"
   (interactive)
-  (let ((project-dir (expand-file-name "~/Typst/KSA/calculus-1/"))
-        (pdf-path (expand-file-name "~/Downloads/Calculus9eStewart_ISBN 978-1-337-62418-3 Red cover.pdf")))
+  (let ((project-dir (expand-file-name "~/git_shit/calculus-1/"))
+        (pdf-path (expand-file-name "~/KSA/Calculus_I/Calculus9eStewart_ISBN 978-1-337-62418-3 Red cover.pdf")))
     (noteworthy-init project-dir pdf-path)))
 
 (defun calculus1-noteworthy-no-pdf ()
   "Initialize Calculus I KSA Course without a PDF"
   (interactive)
-  (let ((project-dir (expand-file-name "~/Typst/KSA/calculus-1/")))
+  (let ((project-dir (expand-file-name "~/git_shit/calculus-1/")))
     (noteworthy-init project-dir nil)))
 
 ;; ==========================================

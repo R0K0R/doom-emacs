@@ -427,6 +427,25 @@ ORIG is `typst-preview--connect-browser', given BROWSER and HOSTNAME."
             '((depth . -100)))
 (advice-add 'typst-preview--connect-browser :around #'my/kitty-preview--typst-connect)
 
+;; PDFs inside `emacs -nw'.  Doom's :tools pdf opens every PDF in pdf-tools'
+;; `pdf-view-mode', which draws pages as Emacs images a terminal cannot show,
+;; and kitty-graphics does not hook pdf-view at all: its PDF support is
+;; `doc-view-mode', which it teaches to render in the terminal (pages are
+;; converted to PNG with Ghostscript or mutool).  So on a terminal frame with
+;; kitty-graphics active, a PDF opens in doc-view instead.  GUI frames keep
+;; pdf-tools.
+(defun my/kitty-pdf--use-doc-view (orig &rest args)
+  "Open the PDF in `doc-view-mode' on a kitty-graphics terminal frame.
+ORIG and ARGS are `pdf-view-mode' and its arguments."
+  (if (and (not (display-graphic-p))
+           (bound-and-true-p kitty-graphics-mode))
+      (doc-view-mode)
+    (apply orig args)))
+
+;; Outermost, so Doom's epdfinfo advice on the same function never runs for a
+;; terminal frame (it would try to start the pdf-tools server for nothing).
+(advice-add 'pdf-view-mode :around #'my/kitty-pdf--use-doc-view '((depth . -100)))
+
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES
 ;; ==========================================

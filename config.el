@@ -524,6 +524,36 @@ ORIG is `typst-preview--connect-browser', given BROWSER and HOSTNAME."
 
 (advice-add 'kitty-graphics--refresh-browser-overlay :after #'my/kitty-browser--follow-size)
 
+;; The cursor, and what you type, must stay where Emacs put them.  casty
+;; positions every frame by moving the terminal cursor to the frame's corner
+;; (`ESC [ row ; col H') and never puts it back, and kitty-graphics forwards
+;; that straight to the terminal.  Emacs does not know the cursor moved, so
+;; its next update -- the character just typed -- landed relative to the
+;; preview's top-left until a full redraw (a scroll) repainted everything.
+;; Each forwarded run is now wrapped in save-cursor / restore-cursor (DECSC
+;; `ESC 7', DECRC `ESC 8').  Output reaches the filter in arbitrary pieces,
+;; and a restore inside a half-sent escape would corrupt it, so only complete
+;; frames go out -- up to the last string terminator `ESC \' -- and the rest
+;; waits for the next piece.
+(defun my/kitty-browser--keep-cursor (orig proc chunk)
+  "Forward casty CHUNK with the cursor saved and restored around it.
+ORIG is `kitty-graphics--mpv-filter'; PROC is the process."
+  (if (not (string-prefix-p "kitty-graphics-casty" (process-name proc)))
+      (funcall orig proc chunk)
+    (let* ((pending (concat (or (process-get proc 'my-kitty-pending) "") chunk))
+           (end (let ((i (string-search "\e\\" pending)) last)
+                  (while i (setq last (+ i 2) i (string-search "\e\\" pending last)))
+                  (cond
+                   ;; A new escape has begun after the last frame: hold it.
+                   ((string-search "\e" pending (or last 0)) (or last 0))
+                   ;; Nothing left that is escape-like: send it all.
+                   (t (length pending))))))
+      (process-put proc 'my-kitty-pending (substring pending end))
+      (when (> end 0)
+        (funcall orig proc (concat "\e7" (substring pending 0 end) "\e8"))))))
+
+(advice-add 'kitty-graphics--mpv-filter :around #'my/kitty-browser--keep-cursor)
+
 ;; PDFs inside `emacs -nw'.  Doom's :tools pdf opens every PDF in pdf-tools'
 ;; `pdf-view-mode', which draws pages as Emacs images a terminal cannot show,
 ;; and kitty-graphics does not hook pdf-view at all: its PDF support is

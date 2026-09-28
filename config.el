@@ -569,6 +569,12 @@ ORIG is `kitty-graphics--mpv-filter'; PROC is the process."
 ;; :os tty does exactly this before Emacs 31 and leaves it to the detection
 ;; from 31 on.
 (add-hook 'tty-setup-hook #'xterm-mouse-mode)
+;; ...and now, for the frame Emacs started in: Doom loads this file after that
+;; frame's terminal was already set up, so the hook above never runs for it --
+;; a real-Kitty test showed `xterm-mouse-mode' still nil with only the hook.
+;; The hook stays for terminals opened later (`emacsclient -t').
+(when (and (not noninteractive) (eq (framep (selected-frame)) t))
+  (xterm-mouse-mode 1))
 
 ;; PDFs inside `emacs -nw'.  Doom's :tools pdf opens every PDF in pdf-tools'
 ;; `pdf-view-mode', which draws pages as Emacs images a terminal cannot show,

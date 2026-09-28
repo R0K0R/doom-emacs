@@ -481,6 +481,46 @@ ORIG is `typst-preview--connect-browser', given BROWSER and HOSTNAME."
             '((depth . -100)))
 (advice-add 'typst-preview--connect-browser :around #'my/kitty-preview--typst-connect)
 
+;; The browser frame follows its window's size.  kitty-graphics sizes casty
+;; once, at launch, and afterwards only ever tells it where the frame moved
+;; (`set-geometry' with :top/:left), so after a resize the page kept its
+;; original width and ran past the window.  casty's `set-geometry' also takes
+;; :cols/:rows and re-emulates the viewport; this sends them whenever the
+;; window's usable size changes, sized exactly as `kitty-graphics-browse' does.
+(defun my/kitty-browser--follow-size ()
+  "Resize this buffer's casty frame to its window.  Runs in the browser buffer."
+  (when (and kitty-graphics--browser-process
+             (process-live-p kitty-graphics--browser-process)
+             kitty-graphics--browser-overlay
+             (not (active-minibuffer-window)))
+    (when-let* ((win (kitty-graphics--browser-canonical-window)))
+      (let ((cols (max 1 (min (1- (window-body-width win)) kitty-graphics-browser-max-width)))
+            (rows (max 1 (min (1- (window-body-height win)) kitty-graphics-browser-max-height))))
+        (unless (and (eql cols kitty-graphics--browser-cols)
+                     (eql rows kitty-graphics--browser-rows))
+          ;; The buffer holds one blank line per frame row -- that is what
+          ;; reserves the space.  The overlay is rear-advancing, so lines
+          ;; added at the end join it and lines removed shrink it.
+          (let ((inhibit-read-only t)
+                (have (count-lines (point-min) (point-max))))
+            (save-excursion
+              (cond
+               ((< have rows)
+                (goto-char (point-max))
+                (insert (make-string (- rows have) ?\n)))
+               ((> have rows)
+                (goto-char (point-min))
+                (forward-line rows)
+                (delete-region (point) (point-max))))))
+          (setq kitty-graphics--browser-cols cols
+                kitty-graphics--browser-rows rows)
+          (let ((pos (kitty-graphics--browser-overlay-position win)))
+            (kitty-graphics--browser-send
+             (append (list :cmd "set-geometry" :cols cols :rows rows)
+                     (when pos (list :top (car pos) :left (cdr pos)))))))))))
+
+(advice-add 'kitty-graphics--refresh-browser-overlay :after #'my/kitty-browser--follow-size)
+
 ;; PDFs inside `emacs -nw'.  Doom's :tools pdf opens every PDF in pdf-tools'
 ;; `pdf-view-mode', which draws pages as Emacs images a terminal cannot show,
 ;; and kitty-graphics does not hook pdf-view at all: its PDF support is
@@ -491,25 +531,35 @@ ORIG is `typst-preview--connect-browser', given BROWSER and HOSTNAME."
 (defun my/kitty-pdf--use-doc-view (orig &rest args)
   "Open the PDF in `doc-view-mode' on a kitty-graphics terminal frame.
 ORIG and ARGS are `pdf-view-mode' and its arguments."
-  (if (and (not (display-graphic-p))
-           (bound-and-true-p kitty-graphics-mode))
-      (progn
-        (doc-view-mode)
-        (my/kitty-pdf--drop-text)
-        (add-hook 'after-revert-hook #'my/kitty-pdf--drop-text nil t)
-        (add-hook 'write-contents-functions #'my/kitty-pdf--refuse-save nil t))
-    (apply orig args)))
+  (cond
+   ((or (display-graphic-p) (not (bound-and-true-p kitty-graphics-mode)))
+    (apply orig args))
+   ;; Already showing in doc-view: leave it.  `pdf-tools-install' ends by
+   ;; switching every PDF buffer not in pdf-view to pdf-view -- which lands
+   ;; here -- and the Noteworthy layout calls it just before opening its PDF.
+   ;; Running doc-view again killed the conversion it had just started, so
+   ;; the page showed for a moment and was gone.
+   ((derived-mode-p 'doc-view-mode) nil)
+   (t
+    (doc-view-mode)
+    (my/kitty-pdf--drop-text)
+    (add-hook 'after-revert-hook #'my/kitty-pdf--drop-text nil t)
+    (add-hook 'write-contents-functions #'my/kitty-pdf--refuse-save nil t))))
 
 (defun my/kitty-pdf--drop-text ()
   "Replace this doc-view buffer's text -- the raw PDF -- with one character.
-doc-view renders pages from the file (for a remote PDF, from the copy it
-has just made in its cache), and keys its cache on the file's contents,
-so the text is dead weight once the mode is up.  Left in, every walk the
+doc-view renders pages from the file and keys its cache on the file's
+contents, so for a local PDF the text is dead weight once the mode is up.  Left in, every walk the
 display engine makes over the page overlay crosses the whole file: 90 MB
 for a textbook, which is what hung Emacs.  A revert reinserts it, hence
 `after-revert-hook'."
   (when (and (derived-mode-p 'doc-view-mode)
              (bound-and-true-p doc-view--buffer-file-name)
+             ;; Local PDFs only.  For a remote one doc-view renders from a
+             ;; copy it writes FROM THE BUFFER -- at mode setup, on revert,
+             ;; when toggling back from the text view -- so a placeholder
+             ;; there would become the copy.
+             (equal doc-view--buffer-file-name buffer-file-name)
              (file-readable-p doc-view--buffer-file-name)
              (> (buffer-size) 1))
     (let ((inhibit-read-only t)

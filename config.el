@@ -560,6 +560,42 @@ ORIG is `kitty-graphics--mpv-filter'; PROC is the process."
 
 (advice-add 'kitty-graphics--mpv-filter :around #'my/kitty-browser--keep-cursor)
 
+;; Put images back after kitty-graphics clears the screen.  Its browser and
+;; video cleanups -- run whenever the preview is replaced (the layout opens
+;; it twice) or closed -- end with `redraw-display', which clears the whole
+;; terminal (ESC [ 2 J).  Kitty then drops every image on screen, data and
+;; placement both.  kitty-graphics still believed the PDF page was placed and
+;; nothing scheduled a refresh, so the page stayed gone: "shows for a moment,
+;; then vanishes".  Once Emacs has repainted, this forgets which images each
+;; terminal holds (kitty-graphics' own remedy for Kitty dropping data, its
+;; issue #36), re-sends doc-view pages -- their refresh places without
+;; checking -- and refreshes, which places everything again.
+(defun my/kitty-graphics--replace-after-clear (&rest _)
+  "Re-send and re-place every kitty-graphics image after a screen clear."
+  (run-at-time
+   0.05 nil
+   (lambda ()
+     ;; The clear happens in the repaint `redraw-display' asked for; anything
+     ;; sent before it would be wiped again.
+     (redisplay t)
+     (dolist (term (terminal-list))
+       (when (terminal-live-p term)
+         (kitty-graphics--forget-terminal-transmits term)))
+     (dolist (buf (buffer-list))
+       (dolist (ov (buffer-local-value 'kitty-graphics--overlays buf))
+         (when (overlay-buffer ov)
+           (overlay-put ov 'kitty-graphics-placements nil)
+           (let ((file (overlay-get ov 'kitty-graphics-file))
+                 (id (overlay-get ov 'kitty-graphics-id)))
+             (when (and (overlay-get ov 'kitty-graphics-doc-view)
+                        file id (file-exists-p file))
+               (ignore-errors
+                 (funcall (kitty-graphics--backend-fn 'prepare) file id)))))))
+     (kitty-graphics--schedule-refresh t))))
+
+(advice-add 'kitty-graphics--browser-cleanup :after #'my/kitty-graphics--replace-after-clear)
+(advice-add 'kitty-graphics--mpv-cleanup :after #'my/kitty-graphics--replace-after-clear)
+
 ;; The mouse, in every terminal frame.  Emacs 31 turns `xterm-mouse-mode' on by
 ;; itself only after identifying the terminal from its XTVERSION reply, and
 ;; waits for that reply only briefly.  Under kitty-graphics' own start-up

@@ -280,3 +280,51 @@ Returns non-nil so saving stops here without touching the file."
       :map kitty-graphics-browser-mode-map
       :n "=" #'kitty-graphics-browser-fit
       :n "R" #'kitty-graphics-browser-restart)
+
+;; Refit the preview once a Noteworthy layout has opened it.  The layout sizes
+;; its windows after the preview starts, and a remote one opens the preview
+;; only once its tunnel is up, so a fit at the end of the init itself would
+;; run before there is anything to fit.  Instead, the end of `noteworthy-init'
+;; and `noteworthy-remote-init' waits for the browser opened after it to
+;; connect, gives the layout a moment to settle, and fits it then.
+(defvar my/kitty--browse-count 0
+  "How many times `kitty-graphics-browse' has run.
+Tells the browser an init opened from one that was already there.")
+
+(defun my/kitty--count-browse (&rest _)
+  "Count a `kitty-graphics-browse'."
+  (cl-incf my/kitty--browse-count))
+
+(advice-add 'kitty-graphics-browse :before #'my/kitty--count-browse)
+
+(defun my/kitty--fit-when-ready (since &optional tries)
+  "Fit the Kitty browser opened after browse number SINCE, once it is connected.
+Checks every half second, TRIES so far, for up to a minute."
+  (let* ((tries (or tries 0))
+         (buf (get-buffer "*kitty-browser*"))
+         (ready (and buf
+                     (> my/kitty--browse-count since)
+                     (buffer-local-value 'kitty-graphics--browser-ipc-connection buf)
+                     (get-buffer-window buf t))))
+    (cond
+     (ready
+      ;; Let the layout finish sizing its windows first.
+      (run-at-time 1 nil
+                   (lambda ()
+                     (when (buffer-live-p buf)
+                       (with-current-buffer buf
+                         (ignore-errors (kitty-graphics-browser-fit)))))))
+     ((< tries 120)
+      (run-at-time 0.5 nil #'my/kitty--fit-when-ready since (1+ tries))))))
+
+(defun my/kitty--fit-after-init (orig &rest args)
+  "Run ORIG, a Noteworthy init, with ARGS; then fit the preview it opens.
+The browse count is taken before ORIG runs, so a browser it opens at
+once counts as new as well as one it opens later."
+  (let ((since my/kitty--browse-count))
+    (prog1 (apply orig args)
+      (when (my/kitty-preview-p)
+        (my/kitty--fit-when-ready since)))))
+
+(advice-add 'noteworthy-init :around #'my/kitty--fit-after-init)
+(advice-add 'noteworthy-remote-init :around #'my/kitty--fit-after-init)

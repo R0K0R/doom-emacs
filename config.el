@@ -171,6 +171,25 @@
 
 (setq +dashboard-ascii-banner-fn #'my/dashboard-fastfetch-banner)
 
+;; Noteworthy courses at the top of the dashboard menu, above Doom's own.
+(defvar my/dashboard-noteworthy-sections
+  '(("General Physics I"
+     :icon (nerd-icons-mdicon "nf-md-atom" :face '+dashboard-menu-title)
+     :action physics1-noteworthy-init)
+    ("Calculus II (collab)"
+     :icon (nerd-icons-mdicon "nf-md-sigma" :face '+dashboard-menu-title)
+     :action noteworthy-collab-calculus2)
+    ("Open a Noteworthy project"
+     :icon (nerd-icons-mdicon "nf-md-notebook_edit_outline" :face '+dashboard-menu-title)
+     :action noteworthy-init))
+  "Dashboard menu entries for the Noteworthy courses.")
+
+(when (boundp '+dashboard-menu-sections)
+  (setq +dashboard-menu-sections
+        (append my/dashboard-noteworthy-sections
+                (cl-remove-if (lambda (s) (assoc (car s) my/dashboard-noteworthy-sections))
+                              +dashboard-menu-sections))))
+
 ;; ==========================================
 ;; 2. SYSTEM & KEYBINDINGS
 ;; ==========================================

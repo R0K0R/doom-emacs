@@ -832,9 +832,14 @@ ORIG is `kitty-graphics--mpv-filter'; PROC is the process."
         ;; Terminal modes are Emacs's.  casty leaves them alone in embed mode
         ;; except on its error path, which switches mouse reporting off and
         ;; the cursor on -- for the whole terminal, behind Emacs's back.
+        ;; Frames go below cell backgrounds, as the doc-view page does
+        ;; (see `my/kitty-z-below-backgrounds'), so popups draw over them.
         (funcall orig proc (concat "\e7"
                                    (replace-regexp-in-string
-                                    "\e\\[\\?[0-9;]*[hl]" "" (substring pending 0 end) t t)
+                                    "\e_Ga=T," (format "\e_Ga=T,z=%d," my/kitty-z-below-backgrounds)
+                                    (replace-regexp-in-string
+                                     "\e\\[\\?[0-9;]*[hl]" "" (substring pending 0 end) t t)
+                                    t t)
                                    "\e8"))))))
 
 (advice-add 'kitty-graphics--mpv-filter :around #'my/kitty-browser--keep-cursor)
@@ -1073,6 +1078,65 @@ ORIG is `kitty-graphics--overlay-screen-pos'; WIN as there."
 
 (advice-add 'kitty-graphics--on-window-change :around #'my/kitty-graphics--ignore-child-frames)
 (advice-add 'kitty-graphics--on-buffer-change :around #'my/kitty-graphics--ignore-child-frames)
+
+;; Popups over the PDF and the preview.  Kitty draws an image above the text
+;; layer by default, so corfu's completion box -- text in the cells the
+;; page covers -- went underneath it.  Kitty stacks by z-index: below
+;; -1073741824 an image is drawn under every cell with a background colour
+;; of its own and over only cells left at the terminal's default background.
+;; So the doc-view page and casty's preview frames are placed there, and the
+;; buffers they sit in are given the terminal's default background (instead
+;; of the theme's, which Emacs writes out explicitly), so the image still
+;; shows through its own cells.  A popup, with its own background, then
+;; covers it.
+(defconst my/kitty-z-below-backgrounds -1073741825
+  "Kitty z-index under cells with a background colour of their own.")
+
+(defvar my/kitty--below-backgrounds nil
+  "Non-nil while kitty-graphics places a doc-view page.")
+
+(defun my/kitty--z-index-args (args)
+  "Place the image in ARGS, a `kitty-graphics--terminal-send' call, below
+cell backgrounds while `my/kitty--below-backgrounds' is set."
+  (let ((s (car args)))
+    (if (and my/kitty--below-backgrounds (stringp s)
+             (string-prefix-p "\e_Gq=2,a=p," s))
+        (cons (concat (format "\e_Gq=2,a=p,z=%d," my/kitty-z-below-backgrounds)
+                      (substring s (length "\e_Gq=2,a=p,")))
+              (cdr args))
+      args)))
+
+(defun my/kitty--doc-view-below-backgrounds (orig &rest args)
+  "Run ORIG, `kitty-graphics--doc-view-refresh-overlay', placing below backgrounds."
+  (let ((my/kitty--below-backgrounds t))
+    (apply orig args)))
+
+(defun my/kitty--terminal-default-background ()
+  "Draw this buffer on the terminal's own default background."
+  (when (and (not (display-graphic-p)) (bound-and-true-p kitty-graphics-mode))
+    (face-remap-add-relative 'default :background "unspecified-bg")))
+
+(advice-add 'kitty-graphics--terminal-send :filter-args #'my/kitty--z-index-args)
+(advice-add 'kitty-graphics--doc-view-refresh-overlay :around #'my/kitty--doc-view-below-backgrounds)
+(add-hook 'doc-view-mode-hook #'my/kitty--terminal-default-background)
+(add-hook 'kitty-graphics-browser-mode-hook #'my/kitty--terminal-default-background)
+
+;; doc-view shows a "Welcome to DocView!" placeholder until its first page
+;; is converted, on its own page overlay.  kitty-graphics clears it when it
+;; draws the page, but doc-view puts it back whenever it re-displays with the
+;; placeholder empty -- a reconversion at a higher resolution, for one --
+;; and kitty-graphics then keeps showing its page without clearing it again.
+;; It sat in the page's cells: hidden under an image drawn above text,
+;; showing through one drawn below, and visible in the strip beside a
+;; centred page.  Once kitty-graphics is showing a page, it is not put back.
+(defun my/kitty--no-doc-view-placeholder (orig &rest args)
+  "Run ORIG, `doc-view-buffer-message', unless kitty-graphics shows the page."
+  (unless (and (not (display-graphic-p))
+               (bound-and-true-p kitty-graphics--doc-view-overlay)
+               (overlay-buffer kitty-graphics--doc-view-overlay))
+    (apply orig args)))
+
+(advice-add 'doc-view-buffer-message :around #'my/kitty--no-doc-view-placeholder)
 
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES

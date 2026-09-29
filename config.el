@@ -418,28 +418,203 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 (defvar physics1-dropbox (expand-file-name "~/KSA/General_Physics_I/dropbox/")
   "General Physics I class materials, the PDFs usually opened beside the notes.")
 
+(defvar physics1-textbook
+  (expand-file-name "~/KSA/General_Physics_I/textbook/redirection.epub")
+  "General Physics I textbook, University Physics 3rd ed., read in nov.el.")
+
 (defun physics1--read-material ()
-  "Ask for the class PDF to open beside the notes, newest first.
-RET takes the latest one."
+  "Ask for the material to open beside the notes.
+The class PDFs newest first, so RET takes the latest one, then the textbook."
   (let* ((pdfs (sort (directory-files physics1-dropbox t "\\.pdf\\'")
                      (lambda (a b)
                        (time-less-p (file-attribute-modification-time (file-attributes b))
                                     (file-attribute-modification-time (file-attributes a))))))
-         (names (mapcar #'file-name-nondirectory pdfs)))
-    (expand-file-name
-     (completing-read "Open beside the notes: "
-                      (lambda (str pred action)
-                        (if (eq action 'metadata)
-                            '(metadata (display-sort-function . identity))
-                          (complete-with-action action names str pred)))
-                      nil t nil nil (car names))
-     physics1-dropbox)))
+         (textbook "Textbook (University Physics)")
+         (names (append (mapcar #'file-name-nondirectory pdfs) (list textbook)))
+         (choice (completing-read
+                  "Open beside the notes: "
+                  (lambda (str pred action)
+                    (if (eq action 'metadata)
+                        '(metadata (display-sort-function . identity))
+                      (complete-with-action action names str pred)))
+                  nil t nil nil (car names))))
+    (if (equal choice textbook)
+        physics1-textbook
+      (expand-file-name choice physics1-dropbox))))
 
 (defun physics1-noteworthy-init (material)
   "Initialize General Physics I KSA Course, with MATERIAL beside the notes.
-Interactively, pick it from the class PDFs."
+Interactively, pick it from the class PDFs or the textbook."
   (interactive (list (physics1--read-material)))
   (noteworthy-init (expand-file-name "~/KSA/General_Physics_I/noteworthy/") material))
+
+;; EPUBs read in nov.el.  Two things make a big one -- the physics textbook
+;; is 1.1 GB, mostly images -- slow to open, both fixed here:
+;;
+;; - nov unzips the book into a fresh temporary directory on every open and
+;;   deletes it on close; for this one that is 11 s of Emacs frozen in
+;;   `call-process' each time.  It is unzipped once instead, into a cache
+;;   keyed by the file's path, size and modification time, and reused.
+;; - `find-file' reads the whole file into the buffer before the major mode
+;;   runs, and nov throws that away, working from the unzipped copy.  An
+;;   EPUB is visited without reading it.
+(defvar my/nov-cache-directory (expand-file-name "nov/" (or (getenv "XDG_CACHE_HOME") "~/.cache"))
+  "Where EPUBs are unzipped, once each, for nov.el.")
+
+(defun my/nov--cache-dir (file)
+  "The directory FILE is unzipped into, named for its path, size and mtime."
+  (let ((attrs (file-attributes (file-truename file))))
+    (expand-file-name
+     (md5 (format "%s|%s|%s" (file-truename file)
+                  (file-attribute-size attrs)
+                  (format-time-string "%s" (file-attribute-modification-time attrs))))
+     my/nov-cache-directory)))
+
+(defun my/nov--initialize-cached (orig path)
+  "Point nov at PATH's cached unzipped copy, unzipping it only the first time.
+ORIG is `nov--initialize-temp-dir'."
+  (let* ((dir (my/nov--cache-dir path))
+         (done (expand-file-name ".complete" dir)))
+    (unless (file-exists-p done)
+      (message "Unzipping %s once for nov..." (file-name-nondirectory path))
+      (when (file-directory-p dir) (delete-directory dir t))
+      (make-directory my/nov-cache-directory t)
+      ;; Let nov unzip and validate into its own temporary directory as usual,
+      ;; then take that directory over as the cache.
+      (funcall orig path)
+      (rename-file (directory-file-name nov-work-dir) dir)
+      (write-region "" nil done nil 'silent))
+    (setq nov-work-dir dir)))
+
+(defun my/nov--keep-cache (orig &rest args)
+  "Run ORIG, `nov-clean-up', without deleting a cached unzipped copy.
+It still saves the reading position."
+  (if (and (bound-and-true-p nov-work-dir)
+           (file-in-directory-p nov-work-dir my/nov-cache-directory))
+      (cl-letf (((symbol-function 'delete-directory) #'ignore))
+        (apply orig args))
+    (apply orig args)))
+
+(defun my/nov--visit-without-reading (orig filename &rest args)
+  "Visit a local EPUB FILENAME in nov without reading it into the buffer.
+ORIG and ARGS are `find-file-noselect' and the rest of its arguments."
+  (let ((file (expand-file-name filename)))
+    (if (or (not (string-match-p "\\.epub\\'" file))
+            (file-remote-p file)
+            (not (file-readable-p file))
+            (find-buffer-visiting file)
+            (not (require 'nov nil t)))
+        (apply orig filename args)
+      (let ((buf (create-file-buffer file)))
+        (condition-case err
+            (with-current-buffer buf
+              (setq buffer-file-name file
+                    buffer-file-truename (abbreviate-file-name (file-truename file))
+                    default-directory (file-name-directory file))
+              (set-visited-file-modtime)
+              (nov-mode)
+              buf)
+          (error
+           (kill-buffer buf)
+           (message "nov could not open %s: %s" file (error-message-string err))
+           (apply orig filename args)))))))
+
+;; The textbook's equations are MathML, which shr does not know: it runs each
+;; one's characters together, `K = 1/2 m v^2' coming out as `K=12mv2'.  They
+;; are written out as Typst-style math instead, which reads the same in a
+;; terminal frame.
+(defconst my/nov-mathml--spaced-ops
+  '("=" "≈" "≠" "<" ">" "≤" "≥" "+" "−" "-" "±" "∓" "→" "⇒" "⇔" "×" "·" "≡" "∝" "≅" "∼" "∈")
+  "Operators written with a space either side.")
+
+(defconst my/nov-mathml--accents
+  '(("→" . "arrow") ("⃗" . "arrow") ("^" . "hat") ("ˆ" . "hat") ("¯" . "overline")
+    ("‾" . "overline") ("˙" . "dot") ("." . "dot") ("¨" . "dot.double") ("~" . "tilde") ("˜" . "tilde"))
+  "MathML accent characters and the Typst accent each is written as.")
+
+(defun my/nov-mathml--kids (node)
+  (seq-remove (lambda (k) (and (stringp k) (string-blank-p k))) (dom-children node)))
+
+(defun my/nov-mathml--join (parts)
+  "Concatenate PARTS, with a space where two would otherwise run together."
+  (let ((out ""))
+    (dolist (p parts out)
+      (setq out (if (and (> (length out) 0) (> (length p) 0)
+                         (string-match-p "[[:alnum:])]\\'" out)
+                         (string-match-p "\\`[[:alnum:](∑∫∏∮√∂∇]" p))
+                    (concat out " " p)
+                  (concat out p))))))
+
+(defun my/nov-mathml--group (s)
+  "S as an operand: bare when it is a single token, else in parentheses."
+  (if (string-match-p "\\`\\(?:[[:alnum:].′⊥∞∥*]+\\|([^()]*)\\|[[:alnum:]]+([^()]*)\\)\\'" s)
+      s
+    (format "(%s)" s)))
+
+(defun my/nov-mathml--lin (node)
+  "NODE, a MathML element, as a line of Typst-like math."
+  (if (stringp node)
+      (string-trim node)
+    (let* ((kids (my/nov-mathml--kids node))
+           (lin (lambda (i) (my/nov-mathml--lin (nth i kids))))
+           (all (lambda () (my/nov-mathml--join (mapcar #'my/nov-mathml--lin kids)))))
+      (pcase (dom-tag node)
+        ((or 'mi 'mn 'mtext 'ms) (string-trim (dom-texts node "")))
+        ('mo (let ((o (string-trim (dom-texts node ""))))
+               (if (member o my/nov-mathml--spaced-ops) (concat " " o " ") o)))
+        ('mspace " ")
+        ('mfrac (format "%s/%s" (my/nov-mathml--group (funcall lin 0))
+                        (my/nov-mathml--group (funcall lin 1))))
+        ('msup (format "%s^%s" (my/nov-mathml--group (funcall lin 0))
+                       (my/nov-mathml--group (funcall lin 1))))
+        ((or 'msub 'munder)
+         (format "%s_%s" (funcall lin 0) (my/nov-mathml--group (funcall lin 1))))
+        ((or 'msubsup 'munderover)
+         (format "%s_%s^%s" (funcall lin 0) (my/nov-mathml--group (funcall lin 1))
+                 (my/nov-mathml--group (funcall lin 2))))
+        ('mover
+         (let ((accent (cdr (assoc (string-trim (dom-texts (nth 1 kids) "")) my/nov-mathml--accents))))
+           (if accent
+               (format "%s(%s)" accent (funcall lin 0))
+             (format "%s^%s" (funcall lin 0) (my/nov-mathml--group (funcall lin 1))))))
+        ('msqrt (format "sqrt(%s)" (funcall all)))
+        ('mroot (format "root(%s, %s)" (funcall lin 1) (funcall lin 0)))
+        ('mfenced
+         (concat (or (dom-attr node 'open) "(")
+                 (mapconcat #'my/nov-mathml--lin kids (or (dom-attr node 'separators) ", "))
+                 (or (dom-attr node 'close) ")")))
+        ('mtable (mapconcat #'my/nov-mathml--lin kids "\n"))
+        (_ (funcall all))))))
+
+(defun my/nov-mathml-text (dom)
+  "DOM, a <math> element, as lines of Typst-like math."
+  (mapconcat (lambda (l) (replace-regexp-in-string "  +" " " (string-trim l)))
+             (split-string (my/nov-mathml--lin dom) "\n")
+             "\n"))
+
+(defun my/nov-render-math (dom)
+  "Render DOM, a MathML <math> element, as Typst-like text.
+shr does not know MathML and runs an equation's characters together."
+  (let ((text (propertize (my/nov-mathml-text dom) 'face 'font-lock-constant-face)))
+    (if (equal (dom-attr dom 'display) "block")
+        (progn
+          (shr-ensure-newline)
+          (insert (mapconcat (lambda (l) (concat "    " l)) (split-string text "\n") "\n"))
+          (shr-ensure-newline))
+      (shr-insert (replace-regexp-in-string "\n" "; " text)))))
+
+;; Reading positions: nov keeps them under `user-emacs-directory', which in
+;; this Doom is a cache directory.  They are data, kept with Doom's own.
+(setq nov-save-place-file
+      (expand-file-name "nov-places" (if (boundp 'doom-data-dir) doom-data-dir
+                                       (or (getenv "XDG_DATA_HOME") "~/.local/share"))))
+
+(add-to-list 'auto-mode-alist '("\\.epub\\'" . nov-mode))
+(advice-add 'find-file-noselect :around #'my/nov--visit-without-reading)
+(with-eval-after-load 'nov
+  (advice-add 'nov--initialize-temp-dir :around #'my/nov--initialize-cached)
+  (advice-add 'nov-clean-up :around #'my/nov--keep-cache)
+  (add-to-list 'nov-shr-rendering-functions '(math . my/nov-render-math)))
 
 (defun physics1-noteworthy-no-pdf ()
   "Initialize General Physics I KSA Course without a PDF"

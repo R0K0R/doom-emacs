@@ -71,6 +71,7 @@
 (package! kitty-graphics
   :recipe (:host github :repo "cashmeredev/kitty-graphics.el")
   :pin "13666d4eb2ef4eeed24697c0326368eff3667dce")
+(package! nov)  ; EPUB reader (config.el, next to the course launchers)
 
 ;; Auto-install missing Tree-sitter grammars (python-ts-mode, etc.) for :tools tree-sitter.
 (package! treesit-auto)

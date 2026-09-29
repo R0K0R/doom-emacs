@@ -1055,6 +1055,25 @@ ORIG is `kitty-graphics--overlay-screen-pos'; WIN as there."
 
 (advice-add 'kitty-graphics--overlay-screen-pos :around #'my/kitty-doc-view--screen-pos)
 
+;; Corfu's completion popup made the PDF page flicker.  On Emacs 31 a
+;; terminal frame's popup is a child frame, and showing, moving or resizing
+;; it runs `window-size-change-functions' and `window-buffer-change-functions'
+;; for that frame.  kitty-graphics treats either as a layout change of the
+;; screen: it deletes every image placement, forgets the uploaded images,
+;; and places them again ~100 ms later -- so the page blinks out and back on
+;; each popup update.  A child frame is drawn over its parent without
+;; changing any of its windows, so a change there is ignored.
+(defun my/kitty-graphics--ignore-child-frames (orig frame-or-window)
+  "Run ORIG for FRAME-OR-WINDOW unless it belongs to a child frame."
+  (let ((frame (if (windowp frame-or-window)
+                   (window-frame frame-or-window)
+                 frame-or-window)))
+    (unless (and (frame-live-p frame) (frame-parent frame))
+      (funcall orig frame-or-window))))
+
+(advice-add 'kitty-graphics--on-window-change :around #'my/kitty-graphics--ignore-child-frames)
+(advice-add 'kitty-graphics--on-buffer-change :around #'my/kitty-graphics--ignore-child-frames)
+
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES
 ;; ==========================================

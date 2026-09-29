@@ -354,12 +354,31 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 ;; 6. NOTEWORTHY COURSES
 ;; ==========================================
 
-(defun physics1-noteworthy-init ()
-  "Initialize General Physics I KSA Course"
-  (interactive)
-  (let ((project-dir (expand-file-name "~/KSA/General_Physics_I/noteworthy/"))
-        (pdf-path (expand-file-name "~/KSA/General_Physics_I/textbook/University Physics with Modern Physics -- Wolfgang Bauer; Gary D_ Westfall -- 2nd, 2014 -- McGraw-Hill School Education Group -- isbn13 9780073513881 -- a6e101bbff924e64b7b57570b07bb262 -- Anna’s Archive.pdf")))
-    (noteworthy-init project-dir pdf-path)))
+(defvar physics1-dropbox (expand-file-name "~/KSA/General_Physics_I/dropbox/")
+  "General Physics I class materials, the PDFs usually opened beside the notes.")
+
+(defun physics1--read-material ()
+  "Ask for the class PDF to open beside the notes, newest first.
+RET takes the latest one."
+  (let* ((pdfs (sort (directory-files physics1-dropbox t "\\.pdf\\'")
+                     (lambda (a b)
+                       (time-less-p (file-attribute-modification-time (file-attributes b))
+                                    (file-attribute-modification-time (file-attributes a))))))
+         (names (mapcar #'file-name-nondirectory pdfs)))
+    (expand-file-name
+     (completing-read "Open beside the notes: "
+                      (lambda (str pred action)
+                        (if (eq action 'metadata)
+                            '(metadata (display-sort-function . identity))
+                          (complete-with-action action names str pred)))
+                      nil t nil nil (car names))
+     physics1-dropbox)))
+
+(defun physics1-noteworthy-init (material)
+  "Initialize General Physics I KSA Course, with MATERIAL beside the notes.
+Interactively, pick it from the class PDFs."
+  (interactive (list (physics1--read-material)))
+  (noteworthy-init (expand-file-name "~/KSA/General_Physics_I/noteworthy/") material))
 
 (defun physics1-noteworthy-no-pdf ()
   "Initialize General Physics I KSA Course without a PDF"

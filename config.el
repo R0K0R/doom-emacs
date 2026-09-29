@@ -354,17 +354,17 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 ;; 6. NOTEWORTHY COURSES
 ;; ==========================================
 
-(defun calculus1-noteworthy-init ()
-  "Initialize Calculus I KSA Course"
+(defun physics1-noteworthy-init ()
+  "Initialize General Physics I KSA Course"
   (interactive)
-  (let ((project-dir (expand-file-name "~/git_shit/calculus-1/"))
-        (pdf-path (expand-file-name "~/KSA/Calculus_I/Calculus9eStewart_ISBN 978-1-337-62418-3 Red cover.pdf")))
+  (let ((project-dir (expand-file-name "~/KSA/General_Physics_I/noteworthy/"))
+        (pdf-path (expand-file-name "~/KSA/General_Physics_I/textbook/University Physics with Modern Physics -- Wolfgang Bauer; Gary D_ Westfall -- 2nd, 2014 -- McGraw-Hill School Education Group -- isbn13 9780073513881 -- a6e101bbff924e64b7b57570b07bb262 -- Anna’s Archive.pdf")))
     (noteworthy-init project-dir pdf-path)))
 
-(defun calculus1-noteworthy-no-pdf ()
-  "Initialize Calculus I KSA Course without a PDF"
+(defun physics1-noteworthy-no-pdf ()
+  "Initialize General Physics I KSA Course without a PDF"
   (interactive)
-  (let ((project-dir (expand-file-name "~/git_shit/calculus-1/")))
+  (let ((project-dir (expand-file-name "~/KSA/General_Physics_I/noteworthy/")))
     (noteworthy-init project-dir nil)))
 
 ;; ==========================================

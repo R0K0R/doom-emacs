@@ -803,6 +803,53 @@ ORIG is `typst-preview--connect-browser', given BROWSER and HOSTNAME."
 
 (advice-add 'kitty-graphics--refresh-browser-overlay :after #'my/kitty-browser--follow-size)
 
+;; When the frame still does not match its window anyway -- the size is only
+;; re-sent when the window's size in cells changes, so a changed font size,
+;; or casty losing track, goes uncorrected -- `=' in the browser re-sends it
+;; and reloads the page (laid out for the wrong size, it keeps a scroll
+;; offset that can leave it out of view), and `R' restarts the browser on
+;; the same page.
+(defvar my/kitty-browser--url nil
+  "The URL the Kitty browser last opened.")
+
+(defun my/kitty-browser--remember-url (url &rest _)
+  "Record URL, what `kitty-graphics-browse' is opening."
+  (setq my/kitty-browser--url url))
+
+(advice-add 'kitty-graphics-browse :before #'my/kitty-browser--remember-url)
+
+(defun my/kitty-browser-fit (&optional restart)
+  "Fit the Kitty browser's page to its window again.
+With RESTART (a prefix argument), restart the browser on the same page."
+  (interactive "P")
+  (let ((buf (get-buffer "*kitty-browser*")))
+    (unless buf (user-error "No Kitty browser is open"))
+    (if restart
+        (let ((url (or my/kitty-browser--url (user-error "No URL to reopen"))))
+          (with-current-buffer buf (kitty-graphics-browser-quit))
+          (my/kitty-preview-show url))
+      (with-current-buffer buf
+        ;; Forget the size it was last sent, so it is sent again.
+        (setq kitty-graphics--browser-cols nil
+              kitty-graphics--browser-rows nil)
+        (my/kitty-browser--follow-size)
+        (kitty-graphics-browser-reload))
+      (kitty-graphics--schedule-refresh t))))
+
+(defun my/kitty-browser-restart ()
+  "Restart the Kitty browser on the page it shows."
+  (interactive)
+  (my/kitty-browser-fit t))
+
+(map! :after kitty-graphics
+      :map kitty-graphics-browser-mode-map
+      "=" #'my/kitty-browser-fit
+      "R" #'my/kitty-browser-restart
+      ;; The browser buffer is in evil's normal state, where both are taken
+      ;; (and `C-u' scrolls, so restart has a key of its own).
+      :n "=" #'my/kitty-browser-fit
+      :n "R" #'my/kitty-browser-restart)
+
 ;; The cursor, and what you type, must stay where Emacs put them.  casty
 ;; positions every frame by moving the terminal cursor to the frame's corner
 ;; (`ESC [ row ; col H') and never puts it back, and kitty-graphics forwards

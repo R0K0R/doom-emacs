@@ -110,6 +110,67 @@
 (global-vi-tilde-fringe-mode -1)
 (setq-default flycheck-indication-mode 'right-margin)
 
+;; Dashboard banner: fastfetch's output, run afresh each time the dashboard
+;; is shown.  It takes ~0.3 s, too long to block on for every switch to the
+;; dashboard, so the banner draws the last run's output at once and a new run
+;; redraws it when it finishes.  fastfetch comes from the Nix emacs feature.
+(setq fancy-splash-image nil)           ; the same text banner in GUI frames
+
+(defvar my/fastfetch-program "fastfetch")
+(defvar my/fastfetch--raw nil "The last run's output, as fastfetch printed it.")
+(defvar my/fastfetch--banner nil "The last run's output, colored, for the dashboard.")
+(defvar my/fastfetch--process nil)
+(defvar my/fastfetch--redrawing nil
+  "Non-nil while a finished run redraws the dashboard, so it starts no new run.")
+
+(defun my/fastfetch--colorize (raw)
+  "RAW, fastfetch's ANSI-colored output, with the colors as faces."
+  (let* ((s (ansi-color-apply raw))
+         (i 0))
+    ;; ansi-color leaves them in `font-lock-face', which shows only with
+    ;; font-lock on, and the dashboard buffer has it off.
+    (while (< i (length s))
+      (let ((next (next-single-property-change i 'font-lock-face s (length s)))
+            (face (get-text-property i 'font-lock-face s)))
+        (when face (put-text-property i next 'face face s))
+        (setq i next)))
+    ;; Newlines only: the palette rows at the end are colored spaces.
+    (string-trim-right s "\n+")))
+
+(defun my/fastfetch-refresh ()
+  "Run fastfetch, and redraw the dashboard with its output when it changed."
+  (when (and (executable-find my/fastfetch-program)
+             (not (process-live-p my/fastfetch--process)))
+    (let ((buf (generate-new-buffer " *fastfetch*"))
+          ;; The dashboard may sit in a remote directory; fastfetch is local.
+          (default-directory temporary-file-directory))
+      (setq my/fastfetch--process
+            (make-process
+             :name "fastfetch" :buffer buf :noquery t :connection-type 'pipe
+             ;; --pipe lays the info beside the logo with spaces, not cursor
+             ;; movement; `false' keeps the colors anyway.
+             :command (list my/fastfetch-program "--pipe" "false")
+             :sentinel
+             (lambda (proc _event)
+               (unless (process-live-p proc)
+                 (let ((out (with-current-buffer buf (buffer-string))))
+                   (kill-buffer buf)
+                   (when (and (zerop (process-exit-status proc))
+                              (not (equal out my/fastfetch--raw)))
+                     (setq my/fastfetch--raw out
+                           my/fastfetch--banner (my/fastfetch--colorize out))
+                     (when (fboundp '+dashboard-reload)
+                       (let ((my/fastfetch--redrawing t))
+                         (+dashboard-reload t))))))))))))
+
+(defun my/dashboard-fastfetch-banner ()
+  "The dashboard banner: fastfetch's last output, refreshed in the background."
+  (unless my/fastfetch--redrawing
+    (my/fastfetch-refresh))
+  my/fastfetch--banner)
+
+(setq +dashboard-ascii-banner-fn #'my/dashboard-fastfetch-banner)
+
 ;; ==========================================
 ;; 2. SYSTEM & KEYBINDINGS
 ;; ==========================================

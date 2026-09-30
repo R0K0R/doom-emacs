@@ -4,4 +4,4 @@
 ;; My fork of cashmeredev/kitty-graphics.el, carrying fixes not upstream.
 (package! kitty-graphics
   :recipe (:host github :repo "R0K0R/kitty-graphics.el")
-  :pin "99bd20f585c92b5f088aad068e4795946922a983")
+  :pin "5de9ac9f969875b10f59d126c94a6edccccab41e")

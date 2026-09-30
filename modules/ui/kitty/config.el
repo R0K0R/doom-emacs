@@ -273,20 +273,28 @@ Returns non-nil so saving stops here without touching the file."
 ;; ImageMagick first.
 (setq doc-view-mupdf-use-svg nil)
 
-;; The browser buffer is in evil's normal state, which shadows its keymap.
+;; The browser buffer is in one of evil's states (normal, or motion when
+;; opened by way of `special-mode' bindings), which shadow its keymap.
 ;; The refit and restart keys (kitty-graphics-browser-fit, -restart) are taken
 ;; there, and so is the mouse: pressing the button ran
 ;; `evil-mouse-drag-region', which selected the buffer's blank text -- a
 ;; highlight that, having a background of its own, covered the preview --
 ;; and left the buffer in visual state, so later clicks extended the
 ;; selection.  The click itself (the release, `kitty-graphics-browser-click')
-;; is all the browser needs, so the press and a drag do nothing.
+;; is all the browser needs, so the press and a drag do nothing, and a
+;; double or triple click is a click (it selected a word or a line).
 (map! :after kitty-graphics
       :map kitty-graphics-browser-mode-map
-      :n "=" #'kitty-graphics-browser-fit
-      :n "R" #'kitty-graphics-browser-restart
-      :nv [down-mouse-1] #'ignore
-      :nv [drag-mouse-1] #'ignore)
+      :nm "=" #'kitty-graphics-browser-fit
+      :nm "R" #'kitty-graphics-browser-restart
+      :nvm [double-mouse-1] #'kitty-graphics-browser-click
+      :nvm [triple-mouse-1] #'kitty-graphics-browser-click
+      :nvm [down-mouse-1] #'ignore
+      :nvm [double-down-mouse-1] #'ignore
+      :nvm [triple-down-mouse-1] #'ignore
+      :nvm [drag-mouse-1] #'ignore
+      :nvm [double-drag-mouse-1] #'ignore
+      :nvm [triple-drag-mouse-1] #'ignore)
 
 ;; Refit the preview once a Noteworthy layout has opened it.  The layout sizes
 ;; its windows after the preview starts, and a remote one opens the preview

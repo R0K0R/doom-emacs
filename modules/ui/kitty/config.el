@@ -273,13 +273,20 @@ Returns non-nil so saving stops here without touching the file."
 ;; ImageMagick first.
 (setq doc-view-mupdf-use-svg nil)
 
-;; The browser's refit and restart keys (kitty-graphics-browser-fit, -restart)
-;; are in its keymap, but the browser buffer is in evil's normal state, where
-;; both keys are taken.
+;; The browser buffer is in evil's normal state, which shadows its keymap.
+;; The refit and restart keys (kitty-graphics-browser-fit, -restart) are taken
+;; there, and so is the mouse: pressing the button ran
+;; `evil-mouse-drag-region', which selected the buffer's blank text -- a
+;; highlight that, having a background of its own, covered the preview --
+;; and left the buffer in visual state, so later clicks extended the
+;; selection.  The click itself (the release, `kitty-graphics-browser-click')
+;; is all the browser needs, so the press and a drag do nothing.
 (map! :after kitty-graphics
       :map kitty-graphics-browser-mode-map
       :n "=" #'kitty-graphics-browser-fit
-      :n "R" #'kitty-graphics-browser-restart)
+      :n "R" #'kitty-graphics-browser-restart
+      :nv [down-mouse-1] #'ignore
+      :nv [drag-mouse-1] #'ignore)
 
 ;; Refit the preview once a Noteworthy layout has opened it.  The layout sizes
 ;; its windows after the preview starts, and a remote one opens the preview

@@ -401,6 +401,30 @@ Toggle again for xwidget navigation keys (`r', `g', …)."
 (add-hook 'python-mode-hook #'force-corfu-pipes-h 'append)
 (add-hook 'lsp-completion-mode-hook #'force-corfu-pipes-h)
 
+;; nixd option completion. nixd 2.x no longer reads .nixd.json: it asks the
+;; client for its "nixd" settings (and only evaluates option sets it gets that
+;; way -- a --config on the command line is replaced by the client's answer).
+;; So hand it the project's .nixd.json anyway, read when nixd asks: lsp-mode
+;; calls a function-valued setting at request time, inside the requesting
+;; workspace, so each project gets its own file and the file stays the per-repo
+;; source of truth (flakes/nixos keeps its option exprs there). No .nixd.json ->
+;; nil -> lsp-mode omits the key and nixd uses its defaults.
+(defun my/nixd-json (&rest path)
+  "The value at PATH (symbols) in the current LSP workspace's .nixd.json."
+  (when-let* ((ws lsp--cur-workspace)
+              (file (expand-file-name ".nixd.json" (lsp--workspace-root ws)))
+              ((file-readable-p file))
+              (v (json-parse-string
+                  (with-temp-buffer (insert-file-contents file) (buffer-string))
+                  :object-type 'alist :null-object nil)))
+    (dolist (k path v) (setq v (alist-get k v)))))
+
+(after! lsp-nix
+  (setq lsp-nix-nixd-nixpkgs-expr (lambda () (my/nixd-json 'nixpkgs 'expr))
+        lsp-nix-nixd-nixos-options-expr (lambda () (my/nixd-json 'options 'nixos 'expr))
+        lsp-nix-nixd-home-manager-options-expr
+        (lambda () (my/nixd-json 'options 'home-manager 'expr))))
+
 (after! lsp-mode
   ;; Force LSP to only care about the project the current file is in.
   (setq lsp-session-file (expand-file-name ".lsp-session" doom-cache-dir))

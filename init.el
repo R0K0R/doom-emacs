@@ -93,7 +93,7 @@
        ;;grammar           ; tasing grammar mistake every you make
 
        :tools
-       minuet            ; AI completion as you type (Codestral; private)
+       minuet            ; AI completion as you type (victus-15 GPU; private)
        ;;ansible
        ;;biblio            ; Writes a PhD for you (citation needed)
        ;;collab            ; buffers with friends

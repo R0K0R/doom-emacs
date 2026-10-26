@@ -357,10 +357,24 @@ server sees, which over TRAMP is the remote name without the method."
 (setq auto-save-visited-interval 5)
 
 ;; Memory Optimization Settings
-;; 1. Tune Garbage Collection (GCMH) to be more aggressive (100MB threshold)
+;; 1. Garbage collection.  A collection marks the whole live heap -- about
+;; 70 MB with lsp and the preview -- and freezes Emacs ~0.2 s, and typing
+;; makes garbage fast (redisplay alone ~150 KB a redraw).  Collect in short
+;; pauses -- `auto' is 10x the last collection, ~2 s -- rather than after 5 s
+;; of idle, which typing rarely gives, so the threshold was what fired,
+;; mid-word.  64 MB, Doom's own, keeps the ones that do land there short.
 (after! gcmh
-  (setq gcmh-high-cons-threshold (* 100 1024 1024))
-  (setq gcmh-idle-delay 5))
+  (setq gcmh-high-cons-threshold (* 64 1024 1024)
+        gcmh-idle-delay 'auto
+        gcmh-auto-idle-delay-factor 10))
+
+;; diff-hl's fly-diff runs on leaving insert state and diffs the buffer
+;; synchronously: ~0.35 s on every ESC.  Its idle timer keeps the gutter
+;; current anyway.  vc-gutter adds the hook each time the mode turns on,
+;; so take it off after it, from the same mode hook.
+(add-hook! 'diff-hl-flydiff-mode-hook :depth 90
+  (defun noteworthy--no-flydiff-on-insert-exit-h ()
+    (remove-hook 'evil-insert-state-exit-hook #'diff-hl-flydiff-update)))
 
 ;; Proactive memory pressure monitor
 ;; Forces cleanup when system RAM exceeds threshold (not relying on idle-GC)

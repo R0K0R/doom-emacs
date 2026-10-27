@@ -2,8 +2,10 @@
 
 (require 'noteworthy)
 
-(defvar +noteworthy-terminal-cmd (list (or (executable-find "fish") shell-file-name))
-  "Command to run in the Noteworthy terminal.")
+(defvar +noteworthy-terminal-cmd (list (or (getenv "SHELL") shell-file-name))
+  "Command to run in the Noteworthy terminal: the login shell.
+$SHELL, which login and systemd set from passwd, rather than
+`shell-file-name', which Doom points at sh when the login shell is fish.")
 
 (use-package! dtrt-indent
   :after typst-ts-mode

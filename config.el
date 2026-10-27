@@ -206,8 +206,8 @@
 (setq eldoc-idle-delay 0.3
       eldoc-echo-area-use-multiline-p t)
 
-;; VTerm shell: use Fish if available, otherwise `shell-file-name`.
-(setq vterm-shell (or (executable-find "fish") shell-file-name))
+;; VTerm shell: the login shell (see `+noteworthy-terminal-cmd').
+(setq vterm-shell (or (getenv "SHELL") shell-file-name))
 
 ;; Doom hides the mode line in vterm / term / eshell / shell / DAP REPL via
 ;; `mode-line-invisible-mode', not `hide-mode-line-mode' (see Doom’s

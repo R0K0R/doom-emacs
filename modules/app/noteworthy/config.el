@@ -13,9 +13,17 @@ $SHELL, which login and systemd set from passwd, rather than
   ;; 1. Enable dtrt-indent whenever typst-ts-mode starts
   (add-hook 'typst-ts-mode-hook #'dtrt-indent-mode)
   
-  ;; 2. (Optional) Help dtrt-indent recognize Typst syntax
-  ;; Mapping it to 'javascript' usually works well for braces {} and brackets []
-  (add-to-list 'dtrt-indent-hook-mapping-list '(typst-ts-mode javascript)))
+  ;; 2. Help dtrt-indent recognize Typst syntax
+  ;; Mapping it to 'javascript' usually works well for braces {} and brackets [].
+  ;; The third element is the variable it sets: without it dtrt guessed the
+  ;; offset and set nothing, and typst-ts-mode indented by its own default 4.
+  (add-to-list 'dtrt-indent-hook-mapping-list '(typst-ts-mode javascript typst-ts-indent-offset)))
+
+;; typst-ts-mode's indentation rules -- what TAB does off a list item -- use
+;; `typst-ts-indent-offset', 4 by default; the notes are indented by 2.
+;; dtrt-indent sets it per buffer from the file when it can tell.
+(after! typst-ts-core
+  (setq-default typst-ts-indent-offset 2))
 
 ;; typst grammar comes from Nix (treesit-grammars.with-all-grammars, see
 ;; config.el's TREESIT_GRAMMAR_DIR wiring) -- no install-time source needed.

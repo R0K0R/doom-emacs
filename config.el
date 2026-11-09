@@ -485,11 +485,27 @@ The class PDFs newest first, so RET takes the latest one, then the textbook."
         physics1-textbook
       (expand-file-name choice physics1-dropbox))))
 
+(defvar physics1-project (expand-file-name "~/KSA/General_Physics_I/noteworthy/")
+  "The General Physics I Noteworthy project, and its LSP root.")
+
+(defun physics1--lsp-root ()
+  "Make `physics1-project' the LSP root of the files under it, without asking.
+lsp-mode guesses a root through projectile/project.el, which walk up to the
+nearest repository -- ~/KSA, which holds every course -- and asks.  A
+folder in the session is used instead, the deepest one holding the file."
+  (require 'lsp-mode)
+  ;; Through lsp-mode's own command: a `cl-pushnew' on its accessor here
+  ;; would be expanded before lsp-mode is loaded, into a setter that does
+  ;; not exist.
+  (unless (member (lsp-f-canonical physics1-project) (lsp-session-folders (lsp-session)))
+    (lsp-workspace-folders-add physics1-project)))
+
 (defun physics1-noteworthy-init (material)
   "Initialize General Physics I KSA Course, with MATERIAL beside the notes.
 Interactively, pick it from the class PDFs or the textbook."
   (interactive (list (physics1--read-material)))
-  (noteworthy-init (expand-file-name "~/KSA/General_Physics_I/noteworthy/") material))
+  (physics1--lsp-root)
+  (noteworthy-init physics1-project material))
 
 ;; EPUBs read in nov.el.  Two things make a big one -- the physics textbook
 ;; is 1.1 GB, mostly images -- slow to open, both fixed here:
@@ -662,8 +678,8 @@ shr does not know MathML and runs an equation's characters together."
 (defun physics1-noteworthy-no-pdf ()
   "Initialize General Physics I KSA Course without a PDF"
   (interactive)
-  (let ((project-dir (expand-file-name "~/KSA/General_Physics_I/noteworthy/")))
-    (noteworthy-init project-dir nil)))
+  (physics1--lsp-root)
+  (noteworthy-init physics1-project nil))
 
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES

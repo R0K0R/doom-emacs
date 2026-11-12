@@ -204,7 +204,7 @@
 
 ;; Eldoc speed
 (setq eldoc-idle-delay 0.3
-      eldoc-echo-area-use-multiline-p t)
+      eldoc-echo-area-use-multiline-p 3)    ; t grew to a quarter of the frame
 
 ;; VTerm shell: the login shell (see `+noteworthy-terminal-cmd').
 (setq vterm-shell (or (getenv "SHELL") shell-file-name))

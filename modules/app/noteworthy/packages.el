@@ -8,7 +8,7 @@
 ;; points at an unpublished private repo and can only ever resolve via :pin).
 (package! typst-preview
   :recipe (:type git :host github :repo "havarddj/typst-preview.el")
-  :pin "f2903a1b98e13be7c927de835ae0d9159dd9fb9a")
+  :pin "ab2e9682e2caf10ebca8fcaa576ea7385d665dab")
 
 (package! noteworthy
   ;; :files must be spelled out: straight's default directive copies only

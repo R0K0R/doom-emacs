@@ -264,6 +264,22 @@ server sees, which over TRAMP is the remote name without the method."
 ;; Explicitly enable corfu-mode in Typst buffers
 (add-hook 'typst-ts-mode-hook #'corfu-mode)
 
+;; Nothing selected until C-n or TAB: RET (`noteworthy-typst-smart-newline')
+;; inserts only a candidate chosen, and with `first' preselected the one the
+;; popup merely offered -- a parameter like `fill:' right after `(' -- looked
+;; chosen, so RET typed it instead of breaking the line.
+(add-hook 'typst-ts-mode-hook
+          (lambda () (setq-local corfu-preselect 'prompt)))
+
+;; lsp's signature help popped up on every `(' and `,' in a window (lv)
+;; grown to fit tinymist's whole documentation page for the function -- a
+;; large slice of the frame, mid-typing.  Asked for instead (M-t s), and the
+;; signature line alone.
+(add-hook 'typst-ts-mode-hook
+          (lambda ()
+            (setq-local lsp-signature-auto-activate nil)
+            (setq-local lsp-signature-render-documentation nil)))
+
 ;; Smartparens for parenthesis/bracket pairing
 (add-hook 'typst-ts-mode-hook #'smartparens-mode)
 
@@ -339,7 +355,9 @@ server sees, which over TRAMP is the remote name without the method."
 
 ;; Eldoc: Show explanation after 0.5s
 (setq eldoc-idle-delay 0.5)
-(setq eldoc-echo-area-use-multiline-p t)
+;; At most 3 lines: t let a hover grow the echo area to a quarter of the
+;; frame (`max-mini-window-height') for tinymist's long docs.
+(setq eldoc-echo-area-use-multiline-p 3)
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.

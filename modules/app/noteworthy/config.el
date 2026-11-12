@@ -280,6 +280,13 @@ server sees, which over TRAMP is the remote name without the method."
             (setq-local lsp-signature-auto-activate nil)
             (setq-local lsp-signature-render-documentation nil)))
 
+;; M-a is minuet's "accept the suggestion's first line", but while signature
+;; help is up lsp-signature-mode-map takes it for "toggle the full docs" --
+;; which grew the window to tinymist's whole page, most of the frame.  The
+;; full docs stay out; C-g still closes the signature.
+(after! lsp-mode
+  (define-key lsp-signature-mode-map (kbd "M-a") nil))
+
 ;; Smartparens for parenthesis/bracket pairing
 (add-hook 'typst-ts-mode-hook #'smartparens-mode)
 

@@ -198,9 +198,7 @@
   (evil-define-key* '(normal visual) 'global (kbd "SPC") doom-leader-map))
 
 (after! treemacs
-  (setq treemacs-persist-file nil)
-  ;; Switch to doom-atom if doom-colors continues to warn
-  (treemacs-load-theme "doom-colors"))
+  (setq treemacs-persist-file nil))
 
 ;; Eldoc speed
 (setq eldoc-idle-delay 0.3

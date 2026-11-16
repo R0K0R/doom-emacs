@@ -358,9 +358,6 @@ server sees, which over TRAMP is the remote name without the method."
   '(term :background "#000000")
   '(vterm :background "#000000"))
 
-;; Treemacs Theme
-(after! treemacs
-  (treemacs-load-theme "doom-colors"))
 
 ;; Eldoc: Show explanation after 0.5s
 (setq eldoc-idle-delay 0.5)

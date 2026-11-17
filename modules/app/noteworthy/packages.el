@@ -8,14 +8,17 @@
 ;; points at an unpublished private repo and can only ever resolve via :pin).
 (package! typst-preview
   :recipe (:type git :host github :repo "havarddj/typst-preview.el")
-  :pin "bb68067d8dc6718339c5161c3dc76d99a9f2462b")
+  ;; havarddj's commit, NOT noteworthy.el's: a noteworthy bump edits the pin
+  ;; below. Bumps that took the first :pin in this file twice broke evaluation
+  ;; (a noteworthy.el hash here is a 404 at github.com/havarddj).
+  :pin "f2903a1b98e13be7c927de835ae0d9159dd9fb9a")
 
 (package! noteworthy
   ;; :files must be spelled out: straight's default directive copies only
   ;; Lisp and info files, which would leave the shipped snippets/ behind.
   :recipe (:type git :host github :repo "R0K0R/noteworthy.el"
            :files (:defaults "snippets"))
-  :pin "fd032bc72b460119560ad176cc75f3e43cbd4d65")
+  :pin "bb68067d8dc6718339c5161c3dc76d99a9f2462b")
 
 ;; Real-time collaboration package. Fetched from GitHub rather than a
 ;; :local-repo: a local checkout cannot be resolved deterministically, so

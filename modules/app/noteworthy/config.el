@@ -520,9 +520,11 @@ server sees, which over TRAMP is the remote name without the method."
   ;; TODO: set `texlyre-workspace-relays' once the TeXlyre host is known.
   )
 
-;; Keybindings for collaboration
+;; Keybindings: SPC N.  Not SPC n, Doom's notes prefix: its default bindings
+;; are set up after this module and rebuild that prefix, so anything put
+;; there was silently dropped -- and o, s, c, t clash with org's keys anyway.
 (map! :leader
-      :prefix ("n" . "noteworthy")
+      :prefix ("N" . "noteworthy")
       :desc "Connect: Calculus II" "r" #'my/noteworthy-connect-calculus2
       :desc "Connect: R&E" "R" #'my/noteworthy-connect-rne
       :desc "Connect to server" "c" #'noteworthy-workspace-connect

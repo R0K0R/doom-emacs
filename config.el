@@ -178,10 +178,10 @@
      :action physics1-noteworthy-init)
     ("Calculus II (collab)"
      :icon (nerd-icons-mdicon "nf-md-sigma" :face '+dashboard-menu-title)
-     :action noteworthy-collab-calculus2)
+     :action my/noteworthy-connect-calculus2)
     ("Open a Noteworthy project"
      :icon (nerd-icons-mdicon "nf-md-notebook_edit_outline" :face '+dashboard-menu-title)
-     :action noteworthy-init))
+     :action noteworthy-workspace-open))
   "Dashboard menu entries for the Noteworthy courses.")
 
 (when (boundp '+dashboard-menu-sections)
@@ -490,7 +490,7 @@ The class PDFs newest first, so RET takes the latest one, then the textbook."
   "Initialize General Physics I KSA Course, with MATERIAL beside the notes.
 Interactively, pick it from the class PDFs or the textbook."
   (interactive (list (physics1--read-material)))
-  (noteworthy-init physics1-project material))
+  (noteworthy-workspace-open physics1-project material))
 
 ;; EPUBs read in nov.el.  Two things make a big one -- the physics textbook
 ;; is 1.1 GB, mostly images -- slow to open, both fixed here:
@@ -663,7 +663,7 @@ shr does not know MathML and runs an equation's characters together."
 (defun physics1-noteworthy-no-pdf ()
   "Initialize General Physics I KSA Course without a PDF"
   (interactive)
-  (noteworthy-init physics1-project nil))
+  (noteworthy-workspace-open physics1-project nil))
 
 ;; ==========================================
 ;; 7. FOOT TUI IMAGES

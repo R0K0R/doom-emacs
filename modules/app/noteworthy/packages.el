@@ -18,16 +18,29 @@
   ;; Lisp and info files, which would leave the shipped snippets/ behind.
   :recipe (:type git :host github :repo "R0K0R/noteworthy.el"
            :files (:defaults "snippets"))
-  :pin "bb68067d8dc6718339c5161c3dc76d99a9f2462b")
+  :pin "269f788606fc7042a30c4ae1dffc6c2296f489eb")
 
-;; Real-time collaboration package. Fetched from GitHub rather than a
-;; :local-repo: a local checkout cannot be resolved deterministically, so
-;; nix-doom-emacs-unstraightened refuses it outright --
-;;   noteworthy-collab: not in nixpkgs or emacs-overlay, not pinned.
-;; Same reason typst-preview and noteworthy above carry pins.
-(package! noteworthy-collab
-  :recipe (:type git :host github :repo "R0K0R/noteworthy-collab.el")
-  :pin "63997c1eeda14e757ec8e30ef07018a50b5d20d1")
+;; The emacs-collab stack (replaces the retired noteworthy-collab). Fetched
+;; from GitHub and pinned, for the same reason as typst-preview and noteworthy
+;; above: nix-doom-emacs-unstraightened refuses unpinned or local packages.
+;; emacs-collab is the shared client (sync, layout, mirror); the three
+;; *-workspace packages are its frontends. Each needs only its top-level .el
+;; files, so test/ and the bridge-ref/conformance/docs trees stay out.
+(package! emacs-collab
+  :recipe (:host github :repo "R0K0R/emacs-collab.el" :files ("*.el"))
+  :pin "b28ff39da659643f4eadf03ce88384d58ba99ed9")
+
+(package! noteworthy-workspace
+  :recipe (:host github :repo "R0K0R/noteworthy-workspace" :files ("*.el"))
+  :pin "6eb7ad5d104b7d0bcc74a7eb69d11ecad7d8d011")
+
+(package! overleaf-workspace
+  :recipe (:host github :repo "R0K0R/overleaf-workspace" :files ("*.el"))
+  :pin "d734b53101d84ffb3e5a4821169d2b808119744b")
+
+(package! texlyre-workspace
+  :recipe (:host github :repo "R0K0R/TeXlyre-workspace" :files ("*.el"))
+  :pin "d9366ea3e64326079bc7cec58bdcda8307d307c4")
 
 (package! treemacs-nerd-icons)
 

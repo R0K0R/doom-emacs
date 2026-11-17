@@ -1,6 +1,7 @@
 ;;; app/noteworthy/config.el -*- lexical-binding: t; -*-
 
 (require 'noteworthy)
+(require 'noteworthy-workspace)
 
 (defvar +noteworthy-terminal-cmd (list (or (getenv "SHELL") shell-file-name))
   "Command to run in the Noteworthy terminal: the login shell.
@@ -62,7 +63,7 @@ $SHELL, which login and systemd set from passwd, rather than
 ;;     re-registered.  Register the remote client by hand too.
 ;;  3. tinymist's typstExtraArgs is a string[], one flag per element using `=':
 ;;     ["--input=k=v", ...].  A single space-joined string is ignored.
-;;  4. `noteworthy-collab-typst-inputs' reads the project with ordinary file
+;;  4. `noteworthy-workspace-typst-input-flags' reads the project with ordinary file
 ;;     operations -- over TRAMP that is a TRAMP call, and
 ;;     `lsp--start-workspace' is already inside one.  The reentrant call errors
 ;;     and is swallowed, leaving inputs: {} at initialize.  Compute in the mode
@@ -71,9 +72,8 @@ $SHELL, which login and systemd set from passwd, rather than
 
 (defun +noteworthy-typst-root ()
   "Project root for this buffer, however the session was started.
-`lsp-deferred' can fire before `noteworthy-collab--project-root' is set."
-  (or (bound-and-true-p noteworthy-collab--project-root)
-      (bound-and-true-p noteworthy-project-root)
+`lsp-deferred' can fire before `noteworthy-project-root' is set."
+  (or (bound-and-true-p noteworthy-project-root)
       (when default-directory
         (when-let* ((d (locate-dominating-file default-directory "noteworthy.py")))
           (expand-file-name d)))
@@ -87,11 +87,11 @@ Asked for rather than assembled: `parser.typ' resolves its includes from
 them -- the server here, the preview elsewhere.  A second copy of the
 reshaping is how one of those call sites ends up without them, which is what
 left the preview compiling content/0/0.typ and failing.  The cache lives in
-noteworthy-collab so the commands that change the structure invalidate the
+noteworthy-workspace so the commands that change the structure invalidate the
 copy this reads.  With FORCE, rescan."
-  (if (fboundp 'noteworthy-collab-typst-input-flags)
-      (ignore-errors (noteworthy-collab-typst-input-flags root force))
-    ;; noteworthy-collab not loaded yet: no project inputs to give.
+  (if (fboundp 'noteworthy-workspace-typst-input-flags)
+      (ignore-errors (noteworthy-workspace-typst-input-flags root force))
+    ;; noteworthy-workspace not loaded yet: no project inputs to give.
     nil))
 
 (defun +noteworthy-tinymist-init-options ()
@@ -101,8 +101,7 @@ copy this reads.  With FORCE, rescan."
          (args (+noteworthy-typst-inputs-for root)))
     (append (list :rootPath (directory-file-name remote-root))
             ;; exportOpts kept from the earlier registration this replaced.
-            (when-let* ((main (or (bound-and-true-p noteworthy-collab-master-file)
-                                  (bound-and-true-p noteworthy-master-file))))
+            (when-let* ((main (bound-and-true-p noteworthy-master-file)))
               (list :exportOpts (list :input (or (file-remote-p main 'localname) main))))
             (when args (list :typstExtraArgs (vconcat args))))))
 
@@ -136,12 +135,16 @@ makes, which is the only place the project can be read safely."
       :initialization-options #'+noteworthy-tinymist-init-options))))
 
 ;;;###autoload
-(defun noteworthy-collab-calculus2 ()
-  "Open the Calculus II collab session on yulee."
+(defun my/noteworthy-connect-calculus2 ()
+  "Open the Calculus II server project on yulee (port 8010, no token)."
   (interactive)
-  (noteworthy-remote-init "ws://yulee:8011/ws/emacs"
-                          "/sshx:yulee:/home/r0k0r/calculus_2"
-                          (expand-file-name "~/KSA/Stewart_Calculus.pdf")))
+  (noteworthy-workspace-connect "http://yulee:8010"))
+
+;;;###autoload
+(defun my/noteworthy-connect-rne ()
+  "Open the R&E posters server project on yulee (port 8011, no token)."
+  (interactive)
+  (noteworthy-workspace-connect "http://yulee:8011"))
 
 ;; Start LSP automatically in Typst files
 (add-hook 'typst-ts-mode-hook #'lsp-deferred)
@@ -228,8 +231,7 @@ server sees, which over TRAMP is the remote name without the method."
   (when-let* ((ws (bound-and-true-p lsp--cur-workspace))
               (id (lsp--client-server-id (lsp--workspace-client ws)))
               ((memq id '(tinymist tinymist-tramp)))
-              (main (or (bound-and-true-p noteworthy-collab-master-file)
-                        (bound-and-true-p noteworthy-master-file)))
+              (main (bound-and-true-p noteworthy-master-file))
               (path (or (file-remote-p main 'localname) main)))
     (with-lsp-workspace ws
       ;; Asynchronous on purpose: this runs inside initialize, and a
@@ -337,9 +339,9 @@ server sees, which over TRAMP is the remote name without the method."
                       :foreground 'unspecified
                       :inherit nil))
 
-(use-package! noteworthy-layout
+(use-package! noteworthy-workspace
   :config
-  (setq noteworthy-terminal-shell +noteworthy-terminal-cmd))
+  (setq noteworthy-workspace-terminal-shell +noteworthy-terminal-cmd))
 
 ;; Vterm tweaks specific to this module
 (defun +noteworthy-disable-line-numbers-h ()
@@ -384,7 +386,7 @@ server sees, which over TRAMP is the remote name without the method."
           (pdf-path (and pdf-arg (cadr pdf-arg))))
       (add-hook 'emacs-startup-hook
                 (lambda ()
-                  (noteworthy-init path pdf-path))))))
+                  (noteworthy-workspace-open path pdf-path))))))
 
 (use-package! pdf-view-restore
   :after pdf-tools
@@ -497,40 +499,34 @@ server sees, which over TRAMP is the remote name without the method."
   (setq vterm-max-scrollback 2000))
 
 ;; ============================================================
-;; Noteworthy Collaboration (Real-time remote editing)
+;; Collaboration (emacs-collab workspaces)
 ;; ============================================================
 
-(use-package! noteworthy-collab
-  :commands (noteworthy-remote-init noteworthy-collab-disconnect noteworthy-collab-status)
+;; emacs-collab's bridges (syncworthy_bridge, overleaf_bridge, TeXlyre_bridge)
+;; are on the daemon's PATH from the home repo (features/apps/emacs).  The
+;; mirror directory is asked per project; `emacs-collab-mirror-root' is left
+;; unset on purpose.
+(use-package! overleaf-workspace
+  :commands (overleaf-open-project overleaf-quit)
   :config
-  ;; Port 8001 is the Emacs bridge (noteworthy.bridge.server), NOT Studio on
-  ;; 8000 -- Studio speaks binary Yjs, which this client does not.
-  (setq noteworthy-collab-server-url "ws://localhost:8001/ws/emacs")
+  (setq overleaf-workspace-servers
+        '((:name "R&E (yulee)" :url "http://yulee:8020" :auth password)
+          (:name "overleaf.com" :url "https://www.overleaf.com" :auth cookie
+           :cookie-name "overleaf_session2"))))
 
-  ;; Your display name for collaboration
-  (setq noteworthy-collab-user-name user-login-name)
-
-  ;; Terminal command for remote sessions (same as local)
-  (setq noteworthy-collab-terminal-cmd +noteworthy-terminal-cmd)
-
-  ;; Preview: a tinymist session started by hand on the project's machine,
-  ;; with both planes forwarded:
-  ;;   ssh -L 23625:localhost:23625 -L 23626:localhost:23626 yourserver
-  ;; The preview MUST be reached over localhost: tinymist binds 127.0.0.1 and
-  ;; refuses any websocket whose Origin is not localhost, and the xwidget sends
-  ;; the URL it loaded from as its Origin.  Left unset, the URL is inferred
-  ;; from the collab server's host and the pane shows "Connection refused".
-  ;; The ports match noteworthy-collab-preview-{data,control}-port.
-  (setq noteworthy-collab-preview-url "http://localhost:23627"
-        noteworthy-collab-preview-control-url "ws://localhost:23628")
+(use-package! texlyre-workspace
+  :commands (texlyre-open-project texlyre-quit)
+  :config
+  ;; TODO: set `texlyre-workspace-relays' once the TeXlyre host is known.
   )
 
 ;; Keybindings for collaboration
 (map! :leader
       :prefix ("n" . "noteworthy")
-      :desc "Remote init" "r" #'noteworthy-remote-init
-      :desc "Disconnect" "d" #'noteworthy-collab-disconnect
-      :desc "Status" "s" #'noteworthy-collab-status
-      :desc "Toggle log" "l" #'noteworthy-collab-toggle-log
-      :desc "Connect preview" "p" #'noteworthy-collab-preview-connect)
-;;
+      :desc "Connect: Calculus II" "r" #'my/noteworthy-connect-calculus2
+      :desc "Connect: R&E" "R" #'my/noteworthy-connect-rne
+      :desc "Connect to server" "c" #'noteworthy-workspace-connect
+      :desc "Quit workspace" "q" #'noteworthy-workspace-quit
+      :desc "Status" "s" #'noteworthy-workspace-status
+      :desc "Overleaf project" "o" #'overleaf-open-project
+      :desc "TeXlyre project" "t" #'texlyre-open-project)

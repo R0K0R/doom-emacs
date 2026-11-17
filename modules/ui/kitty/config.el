@@ -48,12 +48,10 @@ and a plain `typst-preview-mode' session put it in the same place."
     ;; sized by the layouts' own rule -- their width setting, else 35% of the
     ;; frame.  Before casty starts, which reads the size from the window.
     (unless existing
-      (let ((target (or (bound-and-true-p noteworthy-collab-preview-width)
-                        (bound-and-true-p noteworthy-preview-width)
+      (let ((target (or (bound-and-true-p noteworthy-preview-width)
                         (round (* 0.35 (frame-width))))))
         (ignore-errors (window-resize win (- target (window-total-width win)) t))))
     (set-window-dedicated-p win nil)
-    (my/kitty-preview--ensure-local url)
     ;; Whether the page is about to load before its server answers -- only
     ;; then does it need loading again.
     (let* ((port (my/kitty-preview--local-port url))
@@ -76,17 +74,6 @@ and a plain `typst-preview-mode' session put it in the same place."
   (condition-case nil
       (progn (delete-process (open-network-stream "kitty-preview-probe" nil "127.0.0.1" port)) t)
     (error nil)))
-
-(defun my/kitty-preview--ensure-local (url)
-  "Bring up whatever serves URL locally before the browser asks for it.
-A collab preview lives on the project host and is reached through an SSH
-tunnel that `noteworthy-collab-preview-start' opens -- but the layout
-shows the pane as soon as it knows the URL, which can be first.  The
-xwidget got away with that by being reloaded later; casty loads once."
-  (when (and (my/kitty-preview--local-port url)
-             (not (my/kitty-preview--port-up-p (my/kitty-preview--local-port url)))
-             (fboundp 'noteworthy-collab-preview-ensure-tunnel))
-    (ignore-errors (noteworthy-collab-preview-ensure-tunnel))))
 
 (defun my/kitty-preview--reload-when-up (url &optional tries)
   "Reload the kitty browser once URL's local port answers.
@@ -276,8 +263,8 @@ Returns non-nil so saving stops here without touching the file."
 ;; Refit the preview once a Noteworthy layout has opened it.  The layout sizes
 ;; its windows after the preview starts, and a remote one opens the preview
 ;; only once its tunnel is up, so a fit at the end of the init itself would
-;; run before there is anything to fit.  Instead, the end of `noteworthy-init'
-;; and `noteworthy-remote-init' waits for the browser opened after it to
+;; run before there is anything to fit.  Instead, the end of `noteworthy-workspace-open'
+;; and `noteworthy-workspace-connect' waits for the browser opened after it to
 ;; connect, gives the layout a moment to settle, and fits it then.
 (defvar my/kitty--browse-count 0
   "How many times `kitty-graphics-browse' has run.
@@ -318,5 +305,5 @@ once counts as new as well as one it opens later."
       (when (my/kitty-preview-p)
         (my/kitty--fit-when-ready since)))))
 
-(advice-add 'noteworthy-init :around #'my/kitty--fit-after-init)
-(advice-add 'noteworthy-remote-init :around #'my/kitty--fit-after-init)
+(advice-add 'noteworthy-workspace-open :around #'my/kitty--fit-after-init)
+(advice-add 'noteworthy-workspace-connect :around #'my/kitty--fit-after-init)

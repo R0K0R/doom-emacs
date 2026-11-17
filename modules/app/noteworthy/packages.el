@@ -36,7 +36,7 @@
 
 (package! overleaf-workspace
   :recipe (:host github :repo "R0K0R/overleaf-workspace" :files ("*.el"))
-  :pin "d734b53101d84ffb3e5a4821169d2b808119744b")
+  :pin "c6c589c68230f05349ceb69d94ca1423b91522bc")
 
 (package! texlyre-workspace
   :recipe (:host github :repo "R0K0R/TeXlyre-workspace" :files ("*.el"))

@@ -27,6 +27,7 @@ model's own prefix/suffix/middle tokens go into it, and no suffix is sent."
   :init
   (add-hook 'typst-ts-mode-hook #'minuet-auto-suggestion-mode)
   (add-hook 'prog-mode-hook #'minuet-auto-suggestion-mode)
+  (add-hook 'LaTeX-mode-hook #'minuet-auto-suggestion-mode)
   :config
   (setq minuet-provider 'openai-fim-compatible
         ;; One suggestion per request, kept short: inline completion wants the

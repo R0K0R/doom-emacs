@@ -271,6 +271,12 @@ server sees, which over TRAMP is the remote name without the method."
 (add-hook 'typst-ts-mode-hook
           (lambda () (setq-local corfu-preselect 'prompt)))
 
+;; The same typing layer in LaTeX (noteworthy-latex): @a, xhat, kdx;, sq,
+;; S x, ... -- it replaces cdlatex, dropped from init.el.  evil-tex stays.
+(add-hook 'LaTeX-mode-hook #'noteworthy-latex-setup)
+(add-hook 'LaTeX-mode-hook
+          (lambda () (setq-local corfu-preselect 'prompt)))
+
 ;; lsp's signature help popped up on every `(' and `,' in a window (lv)
 ;; grown to fit tinymist's whole documentation page for the function -- a
 ;; large slice of the frame, mid-typing.  Asked for instead (M-t s), and the

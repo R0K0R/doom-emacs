@@ -28,11 +28,11 @@
 ;; files, so test/ and the bridge-ref/conformance/docs trees stay out.
 (package! emacs-collab
   :recipe (:host github :repo "R0K0R/emacs-collab.el" :files ("*.el"))
-  :pin "e4de85f79787e0b871b4d1d6c8a093ea9d4329b1")
+  :pin "621d0039da2f86535e67a72e6d1ada4092bae457")
 
 (package! noteworthy-workspace
   :recipe (:host github :repo "R0K0R/noteworthy-workspace" :files ("*.el"))
-  :pin "6eb7ad5d104b7d0bcc74a7eb69d11ecad7d8d011")
+  :pin "89369558155788887c093a1fe531d8f188a80643")
 
 (package! overleaf-workspace
   :recipe (:host github :repo "R0K0R/overleaf-workspace" :files ("*.el"))

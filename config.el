@@ -178,7 +178,7 @@
      :action physics1-noteworthy-init)
     ("Calculus II (collab)"
      :icon (nerd-icons-mdicon "nf-md-sigma" :face '+dashboard-menu-title)
-     :action my/noteworthy-connect-calculus2)
+     :action my/syncworthy-calculus2)
     ("Open a Noteworthy project"
      :icon (nerd-icons-mdicon "nf-md-notebook_edit_outline" :face '+dashboard-menu-title)
      :action noteworthy-workspace-open))

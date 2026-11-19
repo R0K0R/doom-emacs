@@ -135,16 +135,18 @@ makes, which is the only place the project can be read safely."
       :initialization-options #'+noteworthy-tinymist-init-options))))
 
 ;;;###autoload
-(defun my/noteworthy-connect-calculus2 ()
-  "Open the Calculus II server project on yulee (port 8010, no token)."
+(defun my/syncworthy-calculus2 ()
+  "Open the Calculus II Syncworthy project on yulee, with the textbook.
+Port 8010, no token."
   (interactive)
-  (noteworthy-workspace-connect "http://yulee:8010"))
+  (noteworthy-syncworthy-connect "http://yulee:8010" nil nil
+                                 (expand-file-name "~/KSA/Stewart_Calculus.pdf")))
 
 ;;;###autoload
-(defun my/noteworthy-connect-rne ()
-  "Open the R&E posters server project on yulee (port 8011, no token)."
+(defun my/syncworthy-rne ()
+  "Open the R&E posters Syncworthy project on yulee (port 8011, no token)."
   (interactive)
-  (noteworthy-workspace-connect "http://yulee:8011"))
+  (noteworthy-syncworthy-connect "http://yulee:8011"))
 
 ;; Start LSP automatically in Typst files
 (add-hook 'typst-ts-mode-hook #'lsp-deferred)
@@ -525,9 +527,9 @@ server sees, which over TRAMP is the remote name without the method."
 ;; there was silently dropped -- and o, s, c, t clash with org's keys anyway.
 (map! :leader
       :prefix ("N" . "noteworthy")
-      :desc "Connect: Calculus II" "r" #'my/noteworthy-connect-calculus2
-      :desc "Connect: R&E" "R" #'my/noteworthy-connect-rne
-      :desc "Connect to server" "c" #'noteworthy-workspace-connect
+      :desc "Syncworthy: Calculus II" "r" #'my/syncworthy-calculus2
+      :desc "Syncworthy: R&E" "R" #'my/syncworthy-rne
+      :desc "Syncworthy server" "c" #'noteworthy-syncworthy-connect
       :desc "Quit workspace" "q" #'noteworthy-workspace-quit
       :desc "Status" "s" #'noteworthy-workspace-status
       :desc "Overleaf project" "o" #'overleaf-open-project

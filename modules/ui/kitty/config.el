@@ -264,7 +264,7 @@ Returns non-nil so saving stops here without touching the file."
 ;; its windows after the preview starts, and a remote one opens the preview
 ;; only once its tunnel is up, so a fit at the end of the init itself would
 ;; run before there is anything to fit.  Instead, the end of `noteworthy-workspace-open'
-;; and `noteworthy-workspace-connect' waits for the browser opened after it to
+;; and `noteworthy-syncworthy-connect' waits for the browser opened after it to
 ;; connect, gives the layout a moment to settle, and fits it then.
 (defvar my/kitty--browse-count 0
   "How many times `kitty-graphics-browse' has run.
@@ -306,4 +306,4 @@ once counts as new as well as one it opens later."
         (my/kitty--fit-when-ready since)))))
 
 (advice-add 'noteworthy-workspace-open :around #'my/kitty--fit-after-init)
-(advice-add 'noteworthy-workspace-connect :around #'my/kitty--fit-after-init)
+(advice-add 'noteworthy-syncworthy-connect :around #'my/kitty--fit-after-init)

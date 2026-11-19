@@ -30,9 +30,13 @@
   :recipe (:host github :repo "R0K0R/emacs-collab.el" :files ("*.el"))
   :pin "621d0039da2f86535e67a72e6d1ada4092bae457")
 
+(package! syncworthy-workspace
+  :recipe (:host github :repo "R0K0R/syncworthy-workspace" :files ("*.el"))
+  :pin "44517667bc47e1eb687d8ce20e74914e710a87c5")
+
 (package! noteworthy-workspace
   :recipe (:host github :repo "R0K0R/noteworthy-workspace" :files ("*.el"))
-  :pin "89369558155788887c093a1fe531d8f188a80643")
+  :pin "f55578a7ead2aaebf913d9b09ca99994e984c19a")
 
 (package! overleaf-workspace
   :recipe (:host github :repo "R0K0R/overleaf-workspace" :files ("*.el"))

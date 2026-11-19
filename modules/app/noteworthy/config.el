@@ -135,18 +135,19 @@ makes, which is the only place the project can be read safely."
       :initialization-options #'+noteworthy-tinymist-init-options))))
 
 ;;;###autoload
-(defun my/syncworthy-calculus2 ()
-  "Open the Calculus II Syncworthy project on yulee, with the textbook.
+(defun my/noteworthy-calculus2 ()
+  "Open the Calculus II Noteworthy project on yulee, with the textbook.
 Port 8010, no token."
   (interactive)
-  (noteworthy-syncworthy-connect "http://yulee:8010" nil nil
-                                 (expand-file-name "~/KSA/Stewart_Calculus.pdf")))
+  (noteworthy-connect "http://yulee:8010" nil nil
+                      (expand-file-name "~/KSA/Stewart_Calculus.pdf")))
 
 ;;;###autoload
-(defun my/syncworthy-rne ()
-  "Open the R&E posters Syncworthy project on yulee (port 8011, no token)."
+(defun my/noteworthy-rne ()
+  "Open the R&E posters Noteworthy project on yulee (port 8011, no token).
+No key: M-x only."
   (interactive)
-  (noteworthy-syncworthy-connect "http://yulee:8011"))
+  (noteworthy-connect "http://yulee:8011"))
 
 ;; Start LSP automatically in Typst files
 (add-hook 'typst-ts-mode-hook #'lsp-deferred)
@@ -345,6 +346,11 @@ server sees, which over TRAMP is the remote name without the method."
   :config
   (setq noteworthy-workspace-terminal-shell +noteworthy-terminal-cmd))
 
+(use-package! syncworthy-workspace
+  :commands (syncworthy-connect syncworthy-quit syncworthy-status)
+  :config
+  (setq syncworthy-workspace-terminal-shell +noteworthy-terminal-cmd))
+
 ;; Vterm tweaks specific to this module
 (defun +noteworthy-disable-line-numbers-h ()
   (display-line-numbers-mode -1))
@@ -527,9 +533,9 @@ server sees, which over TRAMP is the remote name without the method."
 ;; there was silently dropped -- and o, s, c, t clash with org's keys anyway.
 (map! :leader
       :prefix ("N" . "noteworthy")
-      :desc "Syncworthy: Calculus II" "r" #'my/syncworthy-calculus2
-      :desc "Syncworthy: R&E" "R" #'my/syncworthy-rne
-      :desc "Syncworthy server" "c" #'noteworthy-syncworthy-connect
+      :desc "Noteworthy: Calculus II" "r" #'my/noteworthy-calculus2
+      :desc "Noteworthy server" "c" #'noteworthy-connect
+      :desc "Syncworthy server" "y" #'syncworthy-connect
       :desc "Quit workspace" "q" #'noteworthy-workspace-quit
       :desc "Status" "s" #'noteworthy-workspace-status
       :desc "Overleaf project" "o" #'overleaf-open-project

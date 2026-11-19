@@ -18,7 +18,7 @@
   ;; Lisp and info files, which would leave the shipped snippets/ behind.
   :recipe (:type git :host github :repo "R0K0R/noteworthy.el"
            :files (:defaults "snippets"))
-  :pin "39815811cf7631048cff7c79ca381324faaa66b9")
+  :pin "217c12e6d430e45c3a3498abd6cb1548a145d95b")
 
 ;; The emacs-collab stack (replaces the retired noteworthy-collab). Fetched
 ;; from GitHub and pinned, for the same reason as typst-preview and noteworthy

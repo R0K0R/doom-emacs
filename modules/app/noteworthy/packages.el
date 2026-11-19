@@ -28,7 +28,7 @@
 ;; files, so test/ and the bridge-ref/conformance/docs trees stay out.
 (package! emacs-collab
   :recipe (:host github :repo "R0K0R/emacs-collab.el" :files ("*.el"))
-  :pin "8e6f5cc08ba80586d9d3e1e2826ee0b84efd30a7")
+  :pin "b0cfc017859ca1777239693e0d2ea6cfb3c60c20")
 
 (package! syncworthy-workspace
   :recipe (:host github :repo "R0K0R/syncworthy-workspace" :files ("*.el"))
